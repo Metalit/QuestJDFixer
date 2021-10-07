@@ -1,0 +1,17 @@
+{
+  "_QPVersion": "0.1.1",
+  "id": "JDFixer",
+  "name": "JDFixer",
+  "version": "0.1.0",
+  "author": "Metalit",
+  "packageId": "com.beatgames.beatsaber",
+  "packageVersion": "1.17.1",
+  "modFiles": [
+    "libJDFixer.so"
+  ],
+  "libraryFiles": [
+    "libbeatsaber-hook_2_3_1.so"
+  ],
+  "dependencies": [],
+  "fileCopies": []
+}
