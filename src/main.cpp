@@ -88,11 +88,13 @@ static void updateLevel(GlobalNamespace::StandardLevelDetailView* self) {
         return;
     lastDiff = self->selectedDifficultyBeatmap;
 
-    // GlobalNamespace::IPreviewBeatmapLevel* previewLevel = (GlobalNamespace::IPreviewBeatmapLevel*)(self->level);
     float bpm = reinterpret_cast<GlobalNamespace::IPreviewBeatmapLevel*>(self->level)->get_beatsPerMinute();
 
     float njs = self->selectedDifficultyBeatmap->get_noteJumpMovementSpeed();
     float offset = self->selectedDifficultyBeatmap->get_noteJumpStartBeatOffset();
+
+    if(njs <= 0)
+        njs = 10;
 
     float jumpDistance = CalculateJumpDistance(bpm, njs, offset);
 
@@ -162,11 +164,10 @@ extern "C" void load() {
     getLogger().info("Installing hooks...");
     il2cpp_functions::Init();
 
-    // config stuff idk
     getModConfig().Init(modInfo);
     QuestUI::Init();
     QuestUI::Register::RegisterModSettingsViewController(modInfo, DidActivate);
-    QuestUI::Register::RegisterGameplaySetupMenu(modInfo, 15, GameplaySettings);
+    QuestUI::Register::RegisterGameplaySetupMenu(modInfo, QuestUI::Register::MenuType::All, GameplaySettings);
 
     LoggerContextObject logger = getLogger().WithContext("load");
 

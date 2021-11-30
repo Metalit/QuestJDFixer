@@ -49,9 +49,10 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         // njs setting slider
         auto horizontal = new_horizontal(vertical->get_transform());
 
-        JDSlider = BeatSaberUI::CreateSliderSetting(horizontal->get_transform(), getModConfig().JumpDist.GetName(), 0.1, getModConfig().JumpDist.GetValue(), 0, 50.0, 0.1, 
+        JDSlider = BeatSaberUI::CreateSliderSetting(horizontal->get_transform(), getModConfig().JumpDist.GetName(), 0.1, getModConfig().JumpDist.GetValue(), 0.1, 50.0, 0.1, 
         [=](float value) {
-            getModConfig().JumpDist.SetValue(value);
+            if(value > 0)
+                getModConfig().JumpDist.SetValue(value);
         });
         BeatSaberUI::AddHoverHint(JDSlider->get_gameObject(), getModConfig().JumpDist.GetHoverHint());
         // make it bigger
@@ -86,6 +87,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 }
 
 void changeDefJD(float value) {
+    if(value <= 0)
+        return;
     defJD = value;
 
     if(defJDButton)
@@ -99,6 +102,8 @@ void changeDefJD(float value) {
 }
 
 void changeReactJD(float value) {
+    if(value <= 0)
+        return;
     reactJD = value;
 
     if(reactJDButton)
