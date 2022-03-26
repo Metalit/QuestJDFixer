@@ -5,7 +5,7 @@
   "version": "1.1.0",
   "author": "Metalit",
   "packageId": "com.beatgames.beatsaber",
-  "packageVersion": "1.17.1",
+  "packageVersion": "1.20.0",
   "modFiles": [
     "libJDFixer.so"
   ],
