@@ -1,14 +1,13 @@
 #include "main.hpp"
+#include "utils.hpp"
 #include "ModConfig.hpp"
 
-#include "beatsaber-hook/shared/utils/typedefs.h"
-#include "beatsaber-hook/shared/utils/il2cpp-utils.hpp"
-#include "beatsaber-hook/shared/utils/logging.hpp"
-#include "beatsaber-hook/shared/utils/utils.h"
 #include "beatsaber-hook/shared/utils/hooking.hpp"
-#include "beatsaber-hook/shared/utils/il2cpp-type-check.hpp"
+
+#include "bs-utils/shared/utils.hpp"
 
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData.hpp"
+#include "GlobalNamespace/BeatmapObjectSpawnMovementData_NoteJumpValueType.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
 #include "GlobalNamespace/IBeatmapLevel.hpp"
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
@@ -20,136 +19,85 @@
 #include "UnityEngine/Vector3.hpp"
 
 #include "questui/shared/QuestUI.hpp"
-#include "config-utils/shared/config-utils.hpp"
 #include "custom-types/shared/register.hpp"
-
-#include <math.h>
-#include <iomanip>
-#include <sstream>
 
 using namespace GlobalNamespace;
 
 static ModInfo modInfo;
 DEFINE_CONFIG(ModConfig);
 
-GlobalNamespace::IDifficultyBeatmap* lastDiff;
+IDifficultyBeatmap* currentBeatmap;
 
 Logger& getLogger() {
     static Logger* logger = new Logger(modInfo);
     return *logger;
 }
 
-static float CalculateJumpDistance(float bpm, float njs, float offset) {
-    // ost1, why?
-    if(njs <= 0)
-        njs = 10;
-
-    float jumpdistance;
-    float halfjump = 4;
-    float num = 60 / bpm;
-
-    while (njs * num * halfjump > 18)
-        halfjump /= 2;
-
-    halfjump += offset;
-    if (halfjump < 1) halfjump = 1;
-
-    jumpdistance = njs * num * halfjump * 2;
-
-    return jumpdistance;
+ModInfo& getModInfo() {
+    return modInfo;
 }
 
-static float CalculateOffset(float bpm, float njs, float desiredJD) {
-    // ost1, why?
-    if(njs <= 0)
-        njs = 10;
-
-    float simOffset = 0;
-    float spbCurr = 60 / bpm;
-    float num2Curr = 4;
-
-    while (njs * spbCurr * num2Curr > 18)
-        num2Curr /= 2;
-
-    float jumpDurCurr = num2Curr * spbCurr * 2;
-    float jumpDisCurr = njs * jumpDurCurr;
-
-    float desiredJumpDur = desiredJD / njs;
-    float jumpDurMul = desiredJumpDur / jumpDurCurr;
-
-    simOffset = (num2Curr * jumpDurMul) - num2Curr;
-
-    return simOffset;
-}
-
-static void updateLevel(GlobalNamespace::StandardLevelDetailView* self) {
+void UpdateLevel(StandardLevelDetailView* self) {
     // don't run when loading the same level in a row
-    if(lastDiff == self->selectedDifficultyBeatmap)
+    if(currentBeatmap == self->selectedDifficultyBeatmap)
         return;
-    lastDiff = self->selectedDifficultyBeatmap;
+    currentBeatmap = self->selectedDifficultyBeatmap;
 
-    float bpm = reinterpret_cast<GlobalNamespace::IPreviewBeatmapLevel*>(self->level)->get_beatsPerMinute();
+    // reset values if configured to
+    if(getModConfig().AutoDef.GetValue()) {
+        float bpm = ((IPreviewBeatmapLevel*) self->level)->get_beatsPerMinute();
 
-    float njs = self->selectedDifficultyBeatmap->get_noteJumpMovementSpeed();
-    float offset = self->selectedDifficultyBeatmap->get_noteJumpStartBeatOffset();
+        float njs = self->selectedDifficultyBeatmap->get_noteJumpMovementSpeed();
+        if(njs <= 0)
+            njs = GetDefaultDifficultyNJS(self->selectedDifficultyBeatmap->get_difficulty());
 
-    if(njs <= 0)
-        njs = 10;
+        float offset = self->selectedDifficultyBeatmap->get_noteJumpStartBeatOffset();
+        
+        float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
+        float halfJumpDistance = halfJumpDuration * njs;
+        
+        // clamp to distance if enabled
+        if(getModConfig().BoundJD.GetValue()) {
+            if(halfJumpDistance > getModConfig().MaxJD.GetValue())
+                halfJumpDistance = getModConfig().MaxJD.GetValue();
+            if(halfJumpDistance < getModConfig().MinJD.GetValue())
+                halfJumpDistance = getModConfig().MinJD.GetValue();
+            halfJumpDuration = halfJumpDistance / njs;
+        }
 
-    float jumpDistance = CalculateJumpDistance(bpm, njs, offset);
+        getModConfig().ReactTime.SetValue(halfJumpDuration);
+        getModConfig().JumpDist.SetValue(halfJumpDistance);
+        getModConfig().NJS.SetValue(njs);
 
-    changeDefJD(jumpDistance);
-
-    changeReactJD(njs * getModConfig().ReactTime.GetValue());
+        UpdateUI();
+    }
 }
 
 // Hooks
-MAKE_HOOK_MATCH(NotesSpawn, &GlobalNamespace::BeatmapObjectSpawnMovementData::Init, void, GlobalNamespace::BeatmapObjectSpawnMovementData* self, int noteLinesCount, float startNoteJumpMovementSpeed, float startBpm, float noteJumpStartBeatOffset, float jumpOffsetY, UnityEngine::Vector3 rightVec, UnityEngine::Vector3 forwardVec) {
-    NotesSpawn(self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpStartBeatOffset, jumpOffsetY, rightVec, forwardVec);
+MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovementData::Init,
+        void, BeatmapObjectSpawnMovementData* self, int noteLinesCount, float startNoteJumpMovementSpeed, float startBpm, BeatmapObjectSpawnMovementData::NoteJumpValueType noteJumpValueType, float noteJumpValue, IJumpOffsetYProvider* jumpOffsetYProvider, UnityEngine::Vector3 rightVec, UnityEngine::Vector3 forwardVec) {
+    
+    if(!getModConfig().Disable.GetValue()) {
+        if(getModConfig().UseNJS.GetValue())
+            startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
 
-    float desiredJD = getModConfig().JumpDist.GetValue();
+        noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
+        float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
+        float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, currentBeatmap->get_noteJumpStartBeatOffset());
+        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed) * 2;
+        
+        getLogger().info("Changing jump duration to %.2f", noteJumpValue);
+    }
 
-    getLogger().info("Changing jump distance to %f", desiredJD);
-
-    float njs = startNoteJumpMovementSpeed;
-
-    self->noteJumpStartBeatOffset = CalculateOffset(startBpm, njs, desiredJD);
+    BeatmapObjectSpawnMovementData_Init(self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec);
 }
 
-MAKE_HOOK_MATCH(NotesUpdate, &GlobalNamespace::BeatmapObjectSpawnMovementData::Update, void, GlobalNamespace::BeatmapObjectSpawnMovementData* self, float bpm, float jumpOffsetY) {
-    NotesUpdate(self, bpm, jumpOffsetY);
-
-    float desiredJD = getModConfig().JumpDist.GetValue();
-
-    float njs = self->startNoteJumpMovementSpeed * bpm / self->startBpm;
-    
-    // recalculate desired jd in case of bpm change
-    float offset = CalculateOffset(bpm, njs, desiredJD);
-    self->noteJumpStartBeatOffset = offset;
-
-    // does the same calculation as normal, except removes the min jump distance
-    float spb = 60 / bpm;
-    float num2 = 4;
-    while (njs * spb * num2 > 18)
-        num2 /= 2;
-    
-    num2 += offset;
-
-    self->jumpDuration = spb * num2 * 2;
-    self->jumpDistance = njs * self->jumpDuration;
-
-    self->moveEndPos = self->centerPos + self->forwardVec * (self->jumpDistance * 0.5);
-    self->jumpEndPos = self->centerPos - self->forwardVec * (self->jumpDistance * 0.5);
-    self->moveStartPos = self->centerPos + self->forwardVec * (self->moveDistance + self->jumpDistance * 0.5);
-    self->spawnAheadTime = self->moveDuration + self->jumpDuration * 0.5;
-}
-
-MAKE_HOOK_MATCH(LoadLevel, &GlobalNamespace::StandardLevelDetailView::RefreshContent, void, GlobalNamespace::StandardLevelDetailView* self) {
-    LoadLevel(self);
+MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
+    StandardLevelDetailView_RefreshContent(self);
 
     getLogger().info("Loading Level");
     
-    updateLevel(self);
+    UpdateLevel(self);
 }
 
 extern "C" void setup(ModInfo& info) {
@@ -165,15 +113,16 @@ extern "C" void load() {
     il2cpp_functions::Init();
 
     getModConfig().Init(modInfo);
+    if(getModConfig().UseNJS.GetValue())
+        bs_utils::Submission::disable(modInfo);
+
     QuestUI::Init();
-    QuestUI::Register::RegisterModSettingsViewController(modInfo, DidActivate);
     QuestUI::Register::RegisterGameplaySetupMenu(modInfo, QuestUI::Register::MenuType::All, GameplaySettings);
 
     LoggerContextObject logger = getLogger().WithContext("load");
 
     // Install hooks
-    INSTALL_HOOK(logger, NotesSpawn);
-    INSTALL_HOOK(logger, NotesUpdate);
-    INSTALL_HOOK(logger, LoadLevel);
+    INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
+    INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     getLogger().info("Installed all hooks!");
 }

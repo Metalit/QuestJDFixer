@@ -4,14 +4,16 @@
   "info": {
     "name": "JDFixer",
     "id": "JDFixer",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "url": null,
-    "additionalData": {}
+    "additionalData": {
+      "overrideSoName": "libjdfixer.so"
+    }
   },
   "dependencies": [
     {
       "id": "beatsaber-hook",
-      "versionRange": "*",
+      "versionRange": "^3.7.0, <3.8.0",
       "additionalData": {
         "extraFiles": [
           "src/inline-hook"
@@ -20,22 +22,27 @@
     },
     {
       "id": "codegen",
-      "versionRange": "*",
+      "versionRange": "^0.22.0",
       "additionalData": {}
     },
     {
       "id": "questui",
-      "versionRange": "*",
+      "versionRange": "^0.13.0",
       "additionalData": {}
     },
     {
       "id": "custom-types",
-      "versionRange": "*",
+      "versionRange": "^0.15.0",
       "additionalData": {}
     },
     {
       "id": "config-utils",
-      "versionRange": "*",
+      "versionRange": "^0.7.0",
+      "additionalData": {}
+    },
+    {
+      "id": "bs-utils",
+      "versionRange": "^0.7.0",
       "additionalData": {}
     }
   ],

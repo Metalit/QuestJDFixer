@@ -1,17 +1,33 @@
 #pragma once
+
+#define HAS_CODEGEN
 #include "config-utils/shared/config-utils.hpp"
 
 DECLARE_CONFIG(ModConfig,
 
-    CONFIG_VALUE(ReactTime, float, "Preferred Reaction Time", 1.0, "Makes the notes always take the same amount of time to reach you, so if the njs is higher, they spawn farther away.");
-    CONFIG_VALUE(AutoReact, bool, "Use Reaction Time", false, "Automatically sets the jump distance to the preferred reaction time");
-    CONFIG_VALUE(AutoDef, float, "Use Level Jump Distance", false, "Automatically sets the jump distance to that of the level");
+    CONFIG_VALUE(ReactTime, float, "Jump Duration", 0.5, "The jump duration to set the level to");
+    CONFIG_VALUE(AutoReact, bool, "Use Jump Duration", true, "Whether to use the jump duration instead of jump distance");
+    CONFIG_VALUE(AutoDef, bool, "Set To Level Values", false, "Automatically resets the jump values the level's when one is selected");
     CONFIG_VALUE(JumpDist, float, "Jump Distance", 18.0, "The jump distance to set the level to");
+    CONFIG_VALUE(BoundJD, bool, "Use Bounds", false, "Whether to set minimum and maximum jump distance values");
+    CONFIG_VALUE(MinJD, float, "Min Jump Distance", 10.0, "The minimum jump distance allowed");
+    CONFIG_VALUE(MaxJD, float, "Min Jump Distance", 20.0, "The maximum jump distance allowed");
+    CONFIG_VALUE(UseNJS, bool, "Override NJS", false, "Whether to override the note jump speed (disables score submission)");
+    CONFIG_VALUE(NJS, float, "Note Jump Speed", 18.0, "The note jump speed to set the level to");
+    CONFIG_VALUE(Disable, bool, "Disable Mod", false, "Whether to disable the mod entirely, allowing the base game settings to take effect");
 
     CONFIG_INIT_FUNCTION(
         CONFIG_INIT_VALUE(ReactTime);
         CONFIG_INIT_VALUE(AutoReact);
         CONFIG_INIT_VALUE(AutoDef);
         CONFIG_INIT_VALUE(JumpDist);
+        CONFIG_INIT_VALUE(BoundJD);
+        CONFIG_INIT_VALUE(MinJD);
+        CONFIG_INIT_VALUE(MaxJD);
+        CONFIG_INIT_VALUE(UseNJS);
+        CONFIG_INIT_VALUE(NJS);
+        CONFIG_INIT_VALUE(Disable);
     )
 )
+
+void UpdateUI();

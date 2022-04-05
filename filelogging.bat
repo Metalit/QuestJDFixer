@@ -1,1 +1,0 @@
-adb logcat | findstr "QuestHook[JD QuestHook[Utils" > log.txt
