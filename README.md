@@ -1,14 +1,12 @@
 # JDFixer for Quest
-Ever wanted to change your note offset with more scope and precision than the limited player settings options? Well, here you go. This mod is a port of https://github.com/zeph-yr/JDFixer with a couple changes.
+Ever wanted to change your note offset with more scope and precision than the limited player settings options? Well, here you go. This mod is inspired by the PC mod [JDFixer](https://github.com/zeph-yr/JDFixer), but has a couple significant changes.
 
-On many maps, especially older ones and OSTs, the jump distance will be far away enough to negatively affect performance. Changing the note jump distance is generally regarded as changing the map itself and does not allow score submission, so this mod changes the offset instead.
+On many maps, especially older ones and OSTs, the Jump Distance is far away enough to mess up timing, change the feel of the level, and generally affect performance negatively. This mod solves that by allowing all the values involved to be configured into your ideal way of playing.
 ## Features
-- Quick settings access through side panel
-- Set your jump distance anywhere from 1 to 50
-- Remember last set jump distance
-- Calculate and set jump distance for a configurable reaction time
+- Quick settings access through gameplay setup menu
+- Configurably set either your Half Jump Distance or Jump Duration
+- Remembers last set values
+- Tweak your Note Jump Speed (disables score submission)
 - Automatically set values for each level and difficulty
 ## What do all these numbers mean?
-The **jump distance** of a level is the absolute distance from the location the notes spawn to where you stand and slice them. It is calculated with an overcomplicated formula using the level's spawn offset, note jump speed, and BPM. **Note jump distance** is the speed that the notes move towards you, and **spawn offset** is an offset to the default jump distance.
-
-The **reaction time** used by this mod is simply the time from the notes spawning until they reach you instead of the distance. A constant reaction time is much more universally applicable.
+The **Half Jump Distance** of a level is the absolute distance from the location the notes spawn to where you stand and slice them. It is calculated with a complicated formula using the level's Spawn Offset, Note Jump Speed, and BPM. **Note Jump Speed** is the speed that the notes move towards you, and **Spawn Offset** is a per-level offset to the default jump distance, set by the mapper. Finally, **Jump Duration** is the amount of time it takes for the notes to reach you after they spawn.
