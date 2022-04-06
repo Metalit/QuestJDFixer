@@ -1,14 +1,27 @@
 Param(
-    [String]$qmodname="JDFixer"
+    [String]$qmodname="",
+    [Parameter(Mandatory=$false)]
+    [Switch] $help
 )
+
+if ($help -eq $true) {
+    Write-Output "`"createqmod`" - Creates a .qmod file with your compiled libraries and mod.json."
+    Write-Output "`n-- Parameters --`n"
+
+    Write-Output "`n-- Arguments --`n"
+
+    Write-Output "qmodName `t The file name of your qmod"
+
+    exit
+}
+
+$mod = "./mod.json"
+$modJson = Get-Content $mod -Raw | ConvertFrom-Json
 
 if ($qmodName -eq "")
 {
-    echo "Give a proper qmod name and try again"
-    exit
+    $qmodName = $modJson.name
 }
-$mod = "./mod.json"
-$modJson = Get-Content $mod -Raw | ConvertFrom-Json
 
 $filelist = @($mod)
 
@@ -20,7 +33,7 @@ if ((-not ($cover -eq "./")) -and (Test-Path $cover))
 
 foreach ($mod in $modJson.modFiles)
 {
-        $path = "./build/" + $mod
+    $path = "./build/" + $mod
     if (-not (Test-Path $path))
     {
         $path = "./extern/libs/" + $mod
@@ -30,7 +43,7 @@ foreach ($mod in $modJson.modFiles)
 
 foreach ($lib in $modJson.libraryFiles)
 {
-        $path = "./build/" + $lib
+    $path = "./build/" + $lib
     if (-not (Test-Path $path))
     {
         $path = "./extern/libs/" + $lib
