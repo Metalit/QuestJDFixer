@@ -2,39 +2,39 @@
 #include "main.hpp"
 #include "ModConfig.hpp"
 
-float GetDesiredJumpDuration(float noteJumpSpeed) {
+float GetDesiredHalfJumpDuration(float noteJumpSpeed) {
     // configured jump speed should be applied before this function
     // using jump duration
     if(getModConfig().AutoReact.GetValue()) {
-        float jumpDuration = getModConfig().ReactTime.GetValue();
+        float halfJumpDuration = getModConfig().ReactTime.GetValue();
         // still clamp to distance if enabled
         if(getModConfig().BoundJD.GetValue()) {
-            float jumpDistance = jumpDuration * noteJumpSpeed;
-            if(jumpDistance > getModConfig().MaxJD.GetValue())
-                jumpDistance = getModConfig().MaxJD.GetValue();
-            if(jumpDistance < getModConfig().MinJD.GetValue())
-                jumpDistance = getModConfig().MinJD.GetValue();
-            jumpDuration = jumpDistance / noteJumpSpeed;
+            float halfJumpDistance = halfJumpDuration * noteJumpSpeed;
+            if(halfJumpDistance > getModConfig().MaxJD.GetValue())
+                halfJumpDistance = getModConfig().MaxJD.GetValue();
+            if(halfJumpDistance < getModConfig().MinJD.GetValue())
+                halfJumpDistance = getModConfig().MinJD.GetValue();
+            halfJumpDuration = halfJumpDistance / noteJumpSpeed;
         }
-        return jumpDuration;
+        return halfJumpDuration;
     // using jump distance
     } else {
-        float jumpDistance = getModConfig().JumpDist.GetValue();
+        float halfJumpDistance = getModConfig().JumpDist.GetValue();
         // clamp to distance if enabled
         if(getModConfig().BoundJD.GetValue()) {
-            if(jumpDistance > getModConfig().MaxJD.GetValue())
-                jumpDistance = getModConfig().MaxJD.GetValue();
-            if(jumpDistance < getModConfig().MinJD.GetValue())
-                jumpDistance = getModConfig().MinJD.GetValue();
+            if(halfJumpDistance > getModConfig().MaxJD.GetValue())
+                halfJumpDistance = getModConfig().MaxJD.GetValue();
+            if(halfJumpDistance < getModConfig().MinJD.GetValue())
+                halfJumpDistance = getModConfig().MinJD.GetValue();
         }
-        return jumpDistance / noteJumpSpeed;
+        return halfJumpDistance / noteJumpSpeed;
     }
 }
 
 const float startHalfJumpDurationInBeats = 4;
 const float maxHalfJumpDistance = 18;
 
-float GetDefaultJumpDuration(float njs, float beatDuration, float startBeatOffset) {
+float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset) {
     // transforms into duration in beats, note jump speed in beats
 	float halfJumpDuration = startHalfJumpDurationInBeats;
 	float distancePerBeat = njs * beatDuration;
@@ -51,8 +51,8 @@ float GetDefaultJumpDuration(float njs, float beatDuration, float startBeatOffse
 	if(halfJumpDuration < 0.25) {
 		halfJumpDuration = 0.25;
 	}
-    // turn back into duration in seconds, instead of in beats, also turn from half to full jump
-	return halfJumpDuration * beatDuration * 2;
+    // turn back into duration in seconds, instead of in beats
+	return halfJumpDuration * beatDuration;
 }
 
 float GetDefaultDifficultyNJS(GlobalNamespace::BeatmapDifficulty difficulty) {

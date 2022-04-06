@@ -2,8 +2,8 @@
 
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
 
-float GetDesiredJumpDuration(float noteJumpSpeed);
+float GetDesiredHalfJumpDuration(float noteJumpSpeed);
 
-float GetDefaultJumpDuration(float njs, float beatDuration, float startBeatOffset);
+float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
 
 float GetDefaultDifficultyNJS(GlobalNamespace::BeatmapDifficulty difficulty);
