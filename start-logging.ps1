@@ -35,7 +35,8 @@ if ($help -eq $true) {
 
 $timestamp = Get-Date -Format "MM-dd HH:mm:ss.fff"
 $bspid = adb shell pidof com.beatgames.beatsaber
-$command = "adb logcat -T `"$timestamp`""
+# $command = "adb logcat -T `"$timestamp`""
+$command = "adb logcat "
 
 if ($all -eq $false) {
     while ([string]::IsNullOrEmpty($bspid)) {
@@ -47,7 +48,7 @@ if ($all -eq $false) {
 }
 
 if ($self -eq $true) {
-    $command += " | Select-String -pattern `"(transitions|AndroidRuntime|CRASH)`""
+    $command += " | Select-String -pattern `"(JDFixer|AndroidRuntime|CRASH)`""
 } elseif ($custom -ne "") {
     $pattern = "(" + $custom + "|AndriodRuntime|CRASH)"
     $command += " | Select-String -pattern `"$pattern`""

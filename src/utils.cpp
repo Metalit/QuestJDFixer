@@ -27,7 +27,7 @@ float GetDesiredHalfJumpDuration(float noteJumpSpeed) {
             if(halfJumpDistance < getModConfig().MinJD.GetValue())
                 halfJumpDistance = getModConfig().MinJD.GetValue();
         }
-        return halfJumpDistance;
+        return halfJumpDistance / noteJumpSpeed;
     }
 }
 

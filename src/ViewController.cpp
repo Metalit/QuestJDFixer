@@ -22,7 +22,7 @@ UnityEngine::Transform* GetSubcontainer(UnityEngine::UI::VerticalLayoutGroup* ve
 
 template<class T>
 QuestUI::SliderSetting* CreateIncrementSlider(T* parent, ConfigUtils::ConfigValue<float>& configValue, float increment, float min, float max) {
-    QuestUI::SliderSetting* slider = BeatSaberUI::CreateSliderSetting(parent, configValue.GetName(), increment, configValue.GetValue(), min, max, [&configValue](float value) {
+    QuestUI::SliderSetting* slider = BeatSaberUI::CreateSliderSetting(parent, configValue.GetName(), increment, configValue.GetValue(), min, max, 0, [&configValue](float value) {
         configValue.SetValue(value);
     });
     if(!configValue.GetHoverHint().empty())

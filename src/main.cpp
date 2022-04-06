@@ -45,6 +45,8 @@ void UpdateLevel(StandardLevelDetailView* self) {
 
     // reset values if configured to
     if(getModConfig().AutoDef.GetValue()) {
+        getLogger().info("Populating level values");
+
         float bpm = ((IPreviewBeatmapLevel*) self->level)->get_beatsPerMinute();
 
         float njs = self->selectedDifficultyBeatmap->get_noteJumpMovementSpeed();
@@ -84,9 +86,9 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
         float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, currentBeatmap->get_noteJumpStartBeatOffset());
-        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed) * 2;
+        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed);
         
-        getLogger().info("Changing jump duration to %.2f", noteJumpValue);
+        getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
 
     BeatmapObjectSpawnMovementData_Init(self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec);
