@@ -55,20 +55,20 @@ void UpdateLevel(StandardLevelDetailView* self) {
 
         float offset = self->selectedDifficultyBeatmap->get_noteJumpStartBeatOffset();
         
-        float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
-        float halfJumpDistance = halfJumpDuration * njs;
+        float jumpDuration = GetDefaultJumpDuration(njs, 60 / bpm, offset);
+        float jumpDistance = jumpDuration * njs;
         
         // clamp to distance if enabled
         if(getModConfig().BoundJD.GetValue()) {
-            if(halfJumpDistance > getModConfig().MaxJD.GetValue())
-                halfJumpDistance = getModConfig().MaxJD.GetValue();
-            if(halfJumpDistance < getModConfig().MinJD.GetValue())
-                halfJumpDistance = getModConfig().MinJD.GetValue();
-            halfJumpDuration = halfJumpDistance / njs;
+            if(jumpDistance > getModConfig().MaxJD.GetValue())
+                jumpDistance = getModConfig().MaxJD.GetValue();
+            if(jumpDistance < getModConfig().MinJD.GetValue())
+                jumpDistance = getModConfig().MinJD.GetValue();
+            jumpDuration = jumpDistance / njs;
         }
 
-        getModConfig().ReactTime.SetValue(halfJumpDuration);
-        getModConfig().JumpDist.SetValue(halfJumpDistance);
+        getModConfig().ReactTime.SetValue(jumpDuration);
+        getModConfig().JumpDist.SetValue(jumpDistance);
         getModConfig().NJS.SetValue(njs);
 
         UpdateUI();
@@ -84,9 +84,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
             startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
-        float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
-        float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, currentBeatmap->get_noteJumpStartBeatOffset());
-        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed);
+        noteJumpValue = GetDesiredJumpDuration(startNoteJumpMovementSpeed) / 2;
         
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
