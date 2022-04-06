@@ -53,8 +53,6 @@ inline void SetParentActive(T* component, bool active) {
 
 void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation) {
     if(firstActivation) {
-        settingsGO = gameObject;
-
         auto vertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject->get_transform());
         
         // raise up container
@@ -111,6 +109,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 
         SetParentActive(njsSlider, getModConfig().UseNJS.GetValue());
     }
+    settingsGO = gameObject;
 }
 
 void UpdateUI() {
