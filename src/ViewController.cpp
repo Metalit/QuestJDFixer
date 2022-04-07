@@ -1,7 +1,6 @@
 #include "main.hpp"
+#include "utils.hpp"
 #include "ModConfig.hpp"
-
-#include "bs-utils/shared/utils.hpp"
 
 #include "questui/shared/CustomTypes/Components/WeakPtrGO.hpp"
 
@@ -22,7 +21,7 @@ UnityEngine::Transform* GetSubcontainer(UnityEngine::UI::VerticalLayoutGroup* ve
 
 template<class T>
 QuestUI::SliderSetting* CreateIncrementSlider(T* parent, ConfigUtils::ConfigValue<float>& configValue, float increment, float min, float max) {
-    QuestUI::SliderSetting* slider = BeatSaberUI::CreateSliderSetting(parent, configValue.GetName(), increment, configValue.GetValue(), min, max, 0, [&configValue](float value) {
+    QuestUI::SliderSetting* slider = BeatSaberUI::CreateSliderSetting(parent, configValue.GetName(), 0.01, configValue.GetValue(), min, max, 0, [&configValue](float value) {
         configValue.SetValue(value);
     });
     if(!configValue.GetHoverHint().empty())
@@ -58,7 +57,11 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         // raise up container
         vertical->get_rectTransform()->set_anchoredPosition({0, 31});
 
-        AddConfigValueToggle(GetSubcontainer(vertical), getModConfig().Disable);
+        auto disableToggle = BeatSaberUI::CreateToggle(GetSubcontainer(vertical), getModConfig().Disable.GetName(), getModConfig().Disable.GetValue(), [](bool enabled) {
+            getModConfig().Disable.SetValue(enabled);
+            UpdateScoreSubmission();
+        });
+        BeatSaberUI::AddHoverHint(disableToggle, getModConfig().Disable.GetHoverHint());
         AddConfigValueToggle(GetSubcontainer(vertical), getModConfig().AutoDef);
 
         // toggle to use distance or duration (off is distance, on is duration)
@@ -67,7 +70,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             SetParentActive(distanceSlider, !enabled);
             SetParentActive(durationSlider, enabled);
         });
-        BeatSaberUI::AddHoverHint(distanceDurationToggle, getModConfig().AutoReact.GetName());
+        BeatSaberUI::AddHoverHint(distanceDurationToggle, getModConfig().AutoReact.GetHoverHint());
         
         // distance slider
         distanceSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().JumpDist, 0.1, 1, 25);
@@ -97,10 +100,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         auto njsToggle = BeatSaberUI::CreateToggle(GetSubcontainer(vertical), getModConfig().UseNJS.GetName(), getModConfig().UseNJS.GetValue(), [](bool enabled) {
             getModConfig().UseNJS.SetValue(enabled);
             SetParentActive(njsSlider, enabled);
-            if(enabled)
-                bs_utils::Submission::disable(getModInfo());
-            else
-                bs_utils::Submission::enable(getModInfo());
+            UpdateScoreSubmission();
         });
         BeatSaberUI::AddHoverHint(njsToggle, getModConfig().UseNJS.GetHoverHint());
 

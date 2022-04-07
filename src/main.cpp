@@ -4,8 +4,6 @@
 
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 
-#include "bs-utils/shared/utils.hpp"
-
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData.hpp"
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData_NoteJumpValueType.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
@@ -115,8 +113,7 @@ extern "C" void load() {
     il2cpp_functions::Init();
 
     getModConfig().Init(modInfo);
-    if(getModConfig().UseNJS.GetValue())
-        bs_utils::Submission::disable(modInfo);
+    UpdateScoreSubmission();
 
     QuestUI::Init();
     QuestUI::Register::RegisterGameplaySetupMenu(modInfo, QuestUI::Register::MenuType::All, GameplaySettings);

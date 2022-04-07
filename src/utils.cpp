@@ -2,6 +2,8 @@
 #include "main.hpp"
 #include "ModConfig.hpp"
 
+#include "bs-utils/shared/utils.hpp"
+
 float GetDesiredHalfJumpDuration(float noteJumpSpeed) {
     // configured jump speed should be applied before this function
     // using jump duration
@@ -71,4 +73,11 @@ float GetDefaultDifficultyNJS(GlobalNamespace::BeatmapDifficulty difficulty) {
         default:
             return 5;
     }
+}
+
+void UpdateScoreSubmission() {
+    if(getModConfig().UseNJS.GetValue() && !getModConfig().Disable.GetValue())
+        bs_utils::Submission::disable(getModInfo());
+    else
+        bs_utils::Submission::enable(getModInfo());
 }
