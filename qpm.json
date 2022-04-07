@@ -3,8 +3,8 @@
   "dependenciesDir": "extern",
   "info": {
     "name": "JDFixer",
-    "id": "JDFixer",
-    "version": "1.0.0",
+    "id": "jdfixer",
+    "version": "2.0.0",
     "url": null,
     "additionalData": {
       "overrideSoName": "libjdfixer.so"

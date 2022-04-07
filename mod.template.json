@@ -7,6 +7,7 @@
   "packageId": "com.beatgames.beatsaber",
   "packageVersion": "1.21.0",
   "description": "Configure your Jump Distance, Speed, and more with ultra precision!",
+  "coverImage": "cover.png",
   "dependencies": [],
   "modFiles": [],
   "libraryFiles": [],
