@@ -1,5 +1,21 @@
-if (Test-Path "./ndkpath.txt")
-{
+Param(
+    [Parameter(Mandatory=$false)]
+    [String] $logName = "log.log",
+
+    [Parameter(Mandatory=$false)]
+    [Switch] $help
+)
+
+if ($help -eq $true) {
+    Write-Output "`"NDK-Stack`" - Processes a tombstone using the debug .so to find file locations"
+    Write-Output "`n-- Arguments --`n"
+    
+    Write-Output "LogName `t`t The file name of the tombstone to process"
+
+    exit
+}
+
+if (Test-Path "./ndkpath.txt") {
     $NDKPath = Get-Content ./ndkpath.txt
 } else {
     $NDKPath = $ENV:ANDROID_NDK_HOME
@@ -10,8 +26,4 @@ if (-not ($PSVersionTable.PSEdition -eq "Core")) {
     $stackScript += ".cmd"
 }
 
-if ($args.Count -eq 0) {
-    Get-Content ./log.log | & $stackScript -sym ./build/debug/ > log_processed.log
-} else {
-    Get-Content $args[0] | & $stackScript -sym ./build/debug/ > "$($args[0])_processed.log"
-}
+Get-Content $logName | & $stackScript -sym ./build/debug/ > "$($logName)_processed.log"
