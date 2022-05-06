@@ -13,6 +13,8 @@
 #include "GlobalNamespace/PlayerData.hpp"
 #include "GlobalNamespace/IDifficultyBeatmap.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
+#include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
+#include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
 
 #include "UnityEngine/Vector3.hpp"
 
@@ -35,23 +37,23 @@ ModInfo& getModInfo() {
     return modInfo;
 }
 
-void UpdateLevel(StandardLevelDetailView* self) {
+void UpdateLevel(IDifficultyBeatmap* beatmap) {
     // don't run when loading the same level in a row
-    if(currentBeatmap == self->selectedDifficultyBeatmap)
+    if(currentBeatmap == beatmap)
         return;
-    currentBeatmap = self->selectedDifficultyBeatmap;
+    currentBeatmap = beatmap;
 
     // reset values if configured to
     if(getModConfig().AutoDef.GetValue()) {
         getLogger().info("Populating level values");
 
-        float bpm = ((IPreviewBeatmapLevel*) self->level)->get_beatsPerMinute();
+        float bpm = ((IPreviewBeatmapLevel*) beatmap->get_level())->get_beatsPerMinute();
 
-        float njs = self->selectedDifficultyBeatmap->get_noteJumpMovementSpeed();
+        float njs = beatmap->get_noteJumpMovementSpeed();
         if(njs <= 0)
-            njs = GetDefaultDifficultyNJS(self->selectedDifficultyBeatmap->get_difficulty());
+            njs = GetDefaultDifficultyNJS(beatmap->get_difficulty());
 
-        float offset = self->selectedDifficultyBeatmap->get_noteJumpStartBeatOffset();
+        float offset = beatmap->get_noteJumpStartBeatOffset();
         
         float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
         float halfJumpDistance = halfJumpDuration * njs;
@@ -83,7 +85,8 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
-        float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, currentBeatmap->get_noteJumpStartBeatOffset());
+        float startBeatOffset = currentBeatmap ? currentBeatmap->get_noteJumpStartBeatOffset() : 0;
+        float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, startBeatOffset);
         noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed);
         
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
@@ -95,9 +98,19 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
 MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
     StandardLevelDetailView_RefreshContent(self);
 
-    getLogger().info("Loading Level");
+    getLogger().info("Loading level in menu");
     
-    UpdateLevel(self);
+    UpdateLevel(self->selectedDifficultyBeatmap);
+}
+
+MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync, &LevelScenesTransitionSetupDataSO::BeforeScenesWillBeActivatedAsync, System::Threading::Tasks::Task*, LevelScenesTransitionSetupDataSO* self) {
+    auto task = LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
+
+    getLogger().info("Loading level before gameplay");
+
+    UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
+
+    return task;
 }
 
 extern "C" void setup(ModInfo& info) {
@@ -109,7 +122,7 @@ extern "C" void setup(ModInfo& info) {
 }
 
 extern "C" void load() {
-    getLogger().info("Installing hooks...");
+    getLogger().info("Installing mod...");
     il2cpp_functions::Init();
 
     getModConfig().Init(modInfo);
@@ -123,5 +136,6 @@ extern "C" void load() {
     // Install hooks
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
+    INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
     getLogger().info("Installed all hooks!");
 }
