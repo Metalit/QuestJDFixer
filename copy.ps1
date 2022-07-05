@@ -18,7 +18,7 @@ Param(
     [String] $custom="",
 
     [Parameter(Mandatory=$false)]
-    [Switch] $file,
+    [String] $file="",
 
     [Parameter(Mandatory=$false)]
     [Switch] $help
@@ -46,7 +46,12 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+& $PSScriptRoot/validate-modjson.ps1
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 $modJson = Get-Content "./mod.json" -Raw | ConvertFrom-Json
+
 $modFiles = $modJson.modFiles
 
 foreach ($fileName in $modFiles) {
@@ -59,4 +64,7 @@ foreach ($fileName in $modFiles) {
 
 & $PSScriptRoot/restart-game.ps1
 
-if ($log -eq $true) { & $PSScriptRoot/start-logging.ps1 -self:$self -all:$all -custom:$custom -file:$file }
+if ($log -eq $true) {
+    & adb logcat -c
+    & $PSScriptRoot/start-logging.ps1 -self:$self -all:$all -custom:$custom -file:$file
+}
