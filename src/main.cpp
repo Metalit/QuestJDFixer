@@ -15,6 +15,7 @@
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
+#include "GlobalNamespace/PracticeSettings.hpp"
 
 #include "UnityEngine/Vector3.hpp"
 
@@ -26,7 +27,8 @@ using namespace GlobalNamespace;
 static ModInfo modInfo;
 DEFINE_CONFIG(ModConfig);
 
-IDifficultyBeatmap* currentBeatmap;
+IDifficultyBeatmap* currentBeatmap = nullptr;
+float practiceSpeed = 1;
 
 Logger& getLogger() {
     static Logger* logger = new Logger(modInfo);
@@ -37,9 +39,9 @@ ModInfo& getModInfo() {
     return modInfo;
 }
 
-void UpdateLevel(IDifficultyBeatmap* beatmap) {
+void UpdateLevel(IDifficultyBeatmap* beatmap, bool forceSet = false) {
     // don't run when loading the same level in a row
-    if(currentBeatmap == beatmap)
+    if(currentBeatmap == beatmap && !forceSet)
         return;
     currentBeatmap = beatmap;
 
@@ -75,6 +77,11 @@ void UpdateLevel(IDifficultyBeatmap* beatmap) {
     }
 }
 
+void SetToLevelDefaults() {
+    if(currentBeatmap)
+        UpdateLevel(currentBeatmap, true);
+}
+
 // Hooks
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovementData::Init,
         void, BeatmapObjectSpawnMovementData* self, int noteLinesCount, float startNoteJumpMovementSpeed, float startBpm, BeatmapObjectSpawnMovementData::NoteJumpValueType noteJumpValueType, float noteJumpValue, IJumpOffsetYProvider* jumpOffsetYProvider, UnityEngine::Vector3 rightVec, UnityEngine::Vector3 forwardVec) {
@@ -82,6 +89,8 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
     if(!getModConfig().Disable.GetValue()) {
         if(getModConfig().UseNJS.GetValue())
             startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
+
+        startNoteJumpMovementSpeed /= (float) practiceSpeed;
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
@@ -109,6 +118,9 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     getLogger().info("Loading level before gameplay");
 
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
+    
+    auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
+    practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
 
     return task;
 }
