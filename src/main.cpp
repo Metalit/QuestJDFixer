@@ -118,9 +118,10 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
     
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
-    auto modifiers = self->gameplayCoreSceneSetupData->gameplayModifiers;
+    // auto modifiers = self->gameplayCoreSceneSetupData->gameplayModifiers;
     // practice settings override modifiers if enabled
-    songSpeed = practiceSettings ? practiceSettings->songSpeedMul : modifiers->get_songSpeedMul();
+    // songSpeed = practiceSettings ? practiceSettings->songSpeedMul : modifiers->get_songSpeedMul();
+    songSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
 
     return task;
 }
