@@ -106,7 +106,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         SetParentActive(maxJDSlider, getModConfig().BoundJD.GetValue());
 
         // njs toggle
-        AddConfigValueToggle(GetSubcontainer(vertical), getModConfig().BoundJD, [](bool enabled) {
+        AddConfigValueToggle(GetSubcontainer(vertical), getModConfig().UseNJS, [](bool enabled) {
             SetParentActive(njsSlider, enabled);
             UpdateScoreSubmission();
         });

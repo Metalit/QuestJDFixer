@@ -16,6 +16,7 @@
 #include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
+#include "GlobalNamespace/GameplayModifiers.hpp"
 
 #include "UnityEngine/Vector3.hpp"
 
@@ -28,7 +29,7 @@ static ModInfo modInfo;
 DEFINE_CONFIG(ModConfig);
 
 IDifficultyBeatmap* currentBeatmap = nullptr;
-float practiceSpeed = 1;
+float songSpeed = 1;
 
 Logger& getLogger() {
     static Logger* logger = new Logger(modInfo);
@@ -90,14 +91,11 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         if(getModConfig().UseNJS.GetValue())
             startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
 
-        startNoteJumpMovementSpeed /= (float) practiceSpeed;
-
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
-        float beatDuration = startBpm > 0 ? 60 / startBpm : 0;
-        float startBeatOffset = currentBeatmap ? currentBeatmap->get_noteJumpStartBeatOffset() : 0;
-        float levelJumpDuration = GetDefaultHalfJumpDuration(startNoteJumpMovementSpeed, beatDuration, startBeatOffset);
-        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed);
+        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, songSpeed);
         
+        startNoteJumpMovementSpeed /= (float) songSpeed;
+
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
 
@@ -120,7 +118,9 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
     
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
-    practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
+    auto modifiers = self->gameplayCoreSceneSetupData->gameplayModifiers;
+    // practice settings override modifiers if enabled
+    songSpeed = practiceSettings ? practiceSettings->songSpeedMul : modifiers->get_songSpeedMul();
 
     return task;
 }

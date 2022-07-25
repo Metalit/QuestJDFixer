@@ -2,7 +2,7 @@
 
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
 
-float GetDesiredHalfJumpDuration(float noteJumpSpeed);
+float GetDesiredHalfJumpDuration(float noteJumpSpeed, float songSpeed);
 
 float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
 

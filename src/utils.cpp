@@ -4,11 +4,13 @@
 
 #include "bs-utils/shared/utils.hpp"
 
-float GetDesiredHalfJumpDuration(float noteJumpSpeed) {
+float GetDesiredHalfJumpDuration(float noteJumpSpeed, float songSpeed) {
+    noteJumpSpeed /= songSpeed;
     // configured jump speed should be applied before this function
     // using jump duration
     if(getModConfig().AutoReact.GetValue()) {
-        float halfJumpDuration = getModConfig().ReactTime.GetValue();
+        // since the song speed is applied after jump distance calculation, we need to factor it in here
+        float halfJumpDuration = getModConfig().ReactTime.GetValue() * songSpeed;
         // still clamp to distance if enabled
         if(getModConfig().BoundJD.GetValue()) {
             float halfJumpDistance = halfJumpDuration * noteJumpSpeed;
