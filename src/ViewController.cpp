@@ -87,7 +87,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         distanceSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().JumpDist, 0.1, 1, 25);
 
         // duration slider
-        durationSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().ReactTime, 0.05, 0.1, 5);
+        durationSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().ReactTime, 0.05, 0.1, 2.5);
         
         SetParentActive(distanceSlider, !getModConfig().AutoReact.GetValue());
         SetParentActive(durationSlider, getModConfig().AutoReact.GetValue());
