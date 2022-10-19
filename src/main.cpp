@@ -94,7 +94,8 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, songSpeed);
         
-        startNoteJumpMovementSpeed /= (float) songSpeed;
+        self->moveSpeed /= songSpeed;
+        startNoteJumpMovementSpeed /= songSpeed;
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }

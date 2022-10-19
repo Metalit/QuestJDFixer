@@ -2,14 +2,14 @@
 #include "utils.hpp"
 #include "ModConfig.hpp"
 
-#include "questui/shared/CustomTypes/Components/WeakPtrGO.hpp"
+#include "beatsaber-hook/shared/utils/typedefs-wrappers.hpp"
 
 using namespace QuestUI;
 using namespace HMUI;
 
 QuestUI::SliderSetting *distanceSlider, *durationSlider, *minJDSlider, *maxJDSlider, *njsSlider;
 
-WeakPtrGO<UnityEngine::GameObject> settingsGO;
+SafePtrUnity<UnityEngine::GameObject> settingsGO;
 
 UnityEngine::Transform* GetSubcontainer(UnityEngine::UI::VerticalLayoutGroup* vertical) {
     auto horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(vertical);
@@ -120,7 +120,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 }
 
 void UpdateUI() {
-    if(settingsGO.isValid()) {
+    if(settingsGO.isAlive()) {
         distanceSlider->set_value(getModConfig().JumpDist.GetValue());
         durationSlider->set_value(getModConfig().ReactTime.GetValue());
         minJDSlider->set_value(getModConfig().MinJD.GetValue());
