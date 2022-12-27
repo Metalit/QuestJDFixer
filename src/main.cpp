@@ -57,10 +57,10 @@ void UpdateLevel(IDifficultyBeatmap* beatmap, bool forceSet = false) {
             njs = GetDefaultDifficultyNJS(beatmap->get_difficulty());
 
         float offset = beatmap->get_noteJumpStartBeatOffset();
-        
+
         float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
         float halfJumpDistance = halfJumpDuration * njs;
-        
+
         // clamp to distance if enabled
         if(getModConfig().BoundJD.GetValue()) {
             if(halfJumpDistance > getModConfig().MaxJD.GetValue())
@@ -86,14 +86,14 @@ void SetToLevelDefaults() {
 // Hooks
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovementData::Init,
         void, BeatmapObjectSpawnMovementData* self, int noteLinesCount, float startNoteJumpMovementSpeed, float startBpm, BeatmapObjectSpawnMovementData::NoteJumpValueType noteJumpValueType, float noteJumpValue, IJumpOffsetYProvider* jumpOffsetYProvider, UnityEngine::Vector3 rightVec, UnityEngine::Vector3 forwardVec) {
-    
+
     if(!getModConfig().Disable.GetValue()) {
         if(getModConfig().UseNJS.GetValue())
             startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, songSpeed);
-        
+
         self->moveSpeed /= songSpeed;
         startNoteJumpMovementSpeed /= songSpeed;
 
@@ -107,7 +107,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
     StandardLevelDetailView_RefreshContent(self);
 
     getLogger().info("Loading level in menu");
-    
+
     UpdateLevel(self->selectedDifficultyBeatmap);
 }
 
@@ -117,7 +117,7 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     getLogger().info("Loading level before gameplay");
 
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
-    
+
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
     // auto modifiers = self->gameplayCoreSceneSetupData->gameplayModifiers;
     // practice settings override modifiers if enabled
@@ -131,7 +131,7 @@ extern "C" void setup(ModInfo& info) {
     info.id = ID;
     info.version = VERSION;
     modInfo = info;
-	
+
     getLogger().info("Completed setup!");
 }
 

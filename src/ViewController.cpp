@@ -46,9 +46,9 @@ QuestUI::SliderSetting* CreateIncrementSlider(T* parent, ConfigUtils::ConfigValu
 }
 
 inline void AddConfigValueToggle(::UnityEngine::Transform* parent, ConfigUtils::ConfigValue<bool>& configValue, std::function<void(bool value)> callback) {
-    auto object = BeatSaberUI::CreateToggle(parent, configValue.GetName(), configValue.GetValue(), 
-        [&configValue, callback = std::move(callback)](bool value) { 
-            configValue.SetValue(value); 
+    auto object = BeatSaberUI::CreateToggle(parent, configValue.GetName(), configValue.GetValue(),
+        [&configValue, callback = std::move(callback)](bool value) {
+            configValue.SetValue(value);
             callback(value);
         }
     );
@@ -64,7 +64,7 @@ inline void SetParentActive(T* component, bool active) {
 void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation) {
     if(firstActivation) {
         auto vertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject->get_transform());
-        
+
         // raise up container
         vertical->get_rectTransform()->set_anchoredPosition({0, 31});
 
@@ -82,13 +82,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             SetParentActive(distanceSlider, !enabled);
             SetParentActive(durationSlider, enabled);
         });
-        
+
         // distance slider
         distanceSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().JumpDist, 0.1, 1, 25);
 
         // duration slider
         durationSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().ReactTime, 0.05, 0.1, 2.5);
-        
+
         SetParentActive(distanceSlider, !getModConfig().AutoReact.GetValue());
         SetParentActive(durationSlider, getModConfig().AutoReact.GetValue());
 
@@ -101,7 +101,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         // bounds sliders
         minJDSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().MinJD, 0.1, 1, 25);
         maxJDSlider = CreateIncrementSlider(GetSubcontainer(vertical), getModConfig().MaxJD, 0.1, 1, 25);
-        
+
         SetParentActive(minJDSlider, getModConfig().BoundJD.GetValue());
         SetParentActive(maxJDSlider, getModConfig().BoundJD.GetValue());
 
