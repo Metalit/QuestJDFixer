@@ -4,7 +4,6 @@
 #include "config-utils/shared/config-utils.hpp"
 
 DECLARE_CONFIG(ModConfig,
-
     CONFIG_VALUE(ReactTime, float, "Jump Duration", 0.5, "The jump duration to set the level to");
     CONFIG_VALUE(AutoReact, bool, "Use Jump Duration", true, "Whether to use the jump duration instead of jump distance");
     CONFIG_VALUE(AutoDef, bool, "Set To Level Values", false, "Automatically resets the jump values to the level's when one is selected");
@@ -15,19 +14,6 @@ DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(UseNJS, bool, "Override NJS", false, "Whether to override the note jump speed (disables score submission)");
     CONFIG_VALUE(NJS, float, "Note Jump Speed", 18.0, "The note jump speed to set the level to");
     CONFIG_VALUE(Disable, bool, "Disable Mod", false, "Whether to disable the mod entirely, allowing the base game settings to take effect");
-
-    CONFIG_INIT_FUNCTION(
-        CONFIG_INIT_VALUE(ReactTime);
-        CONFIG_INIT_VALUE(AutoReact);
-        CONFIG_INIT_VALUE(AutoDef);
-        CONFIG_INIT_VALUE(JumpDist);
-        CONFIG_INIT_VALUE(BoundJD);
-        CONFIG_INIT_VALUE(MinJD);
-        CONFIG_INIT_VALUE(MaxJD);
-        CONFIG_INIT_VALUE(UseNJS);
-        CONFIG_INIT_VALUE(NJS);
-        CONFIG_INIT_VALUE(Disable);
-    )
 )
 
 void UpdateUI();

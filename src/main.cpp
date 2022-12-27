@@ -26,7 +26,6 @@
 using namespace GlobalNamespace;
 
 static ModInfo modInfo;
-DEFINE_CONFIG(ModConfig);
 
 IDifficultyBeatmap* currentBeatmap = nullptr;
 float songSpeed = 1;
