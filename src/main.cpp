@@ -28,7 +28,8 @@ using namespace GlobalNamespace;
 static ModInfo modInfo;
 
 IDifficultyBeatmap* currentBeatmap = nullptr;
-float songSpeed = 1;
+float practiceSpeed = 1;
+float modifierSpeed = 1;
 
 Logger& getLogger() {
     static Logger* logger = new Logger(modInfo);
@@ -90,11 +91,12 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         if(getModConfig().UseNJS.GetValue())
             startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
 
-        noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
-        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, songSpeed);
+        self->moveSpeed /= practiceSpeed;
+        startNoteJumpMovementSpeed /= practiceSpeed;
 
-        self->moveSpeed /= songSpeed;
-        startNoteJumpMovementSpeed /= songSpeed;
+        noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
+        // practice overrides modifiers
+        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, practiceSpeed != 1 ? 1 : modifierSpeed);
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
@@ -118,10 +120,8 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
-    // auto modifiers = self->gameplayCoreSceneSetupData->gameplayModifiers;
-    // practice settings override modifiers if enabled
-    // songSpeed = practiceSettings ? practiceSettings->songSpeedMul : modifiers->get_songSpeedMul();
-    songSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
+    practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
+    modifierSpeed = self->gameplayCoreSceneSetupData->gameplayModifiers->get_songSpeedMul();
 
     return task;
 }
