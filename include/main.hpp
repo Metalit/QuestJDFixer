@@ -5,11 +5,3 @@
 
 Logger& getLogger();
 ModInfo& getModInfo();
-
-#include "HMUI/ViewController.hpp"
-#include "GlobalNamespace/GameplaySetupViewController.hpp"
-
-void SetToLevelDefaults();
-
-// gameplay menu config
-void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation);

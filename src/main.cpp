@@ -1,6 +1,6 @@
 #include "main.hpp"
 #include "utils.hpp"
-#include "ModConfig.hpp"
+#include "config.hpp"
 
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 
@@ -11,12 +11,12 @@
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
 #include "GlobalNamespace/PlayerData.hpp"
-#include "GlobalNamespace/IDifficultyBeatmap.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
 #include "GlobalNamespace/GameplayModifiers.hpp"
+#include "GlobalNamespace/GameplayModifiersPanelController.hpp"
 
 #include "UnityEngine/Vector3.hpp"
 
@@ -27,12 +27,10 @@ using namespace GlobalNamespace;
 
 static ModInfo modInfo;
 
-IDifficultyBeatmap* currentBeatmap = nullptr;
 float practiceSpeed = 1;
-float modifierSpeed = 1;
 
 Logger& getLogger() {
-    static Logger* logger = new Logger(modInfo);
+    static Logger* logger = new Logger(modInfo, {false, true});
     return *logger;
 }
 
@@ -40,63 +38,22 @@ ModInfo& getModInfo() {
     return modInfo;
 }
 
-void UpdateLevel(IDifficultyBeatmap* beatmap, bool forceSet = false) {
-    // don't run when loading the same level in a row
-    if(currentBeatmap == beatmap && !forceSet)
-        return;
-    currentBeatmap = beatmap;
-
-    // reset values if configured to
-    if(getModConfig().AutoDef.GetValue()) {
-        getLogger().info("Populating level values");
-
-        float bpm = ((IPreviewBeatmapLevel*) beatmap->get_level())->get_beatsPerMinute();
-
-        float njs = beatmap->get_noteJumpMovementSpeed();
-        if(njs <= 0)
-            njs = GetDefaultDifficultyNJS(beatmap->get_difficulty());
-
-        float offset = beatmap->get_noteJumpStartBeatOffset();
-
-        float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
-        float halfJumpDistance = halfJumpDuration * njs;
-
-        // clamp to distance if enabled
-        if(getModConfig().BoundJD.GetValue()) {
-            if(halfJumpDistance > getModConfig().MaxJD.GetValue())
-                halfJumpDistance = getModConfig().MaxJD.GetValue();
-            if(halfJumpDistance < getModConfig().MinJD.GetValue())
-                halfJumpDistance = getModConfig().MinJD.GetValue();
-            halfJumpDuration = halfJumpDistance / njs;
-        }
-
-        getModConfig().ReactTime.SetValue(halfJumpDuration);
-        getModConfig().JumpDist.SetValue(halfJumpDistance);
-        getModConfig().NJS.SetValue(njs);
-
-        UpdateUI();
-    }
-}
-
-void SetToLevelDefaults() {
-    if(currentBeatmap)
-        UpdateLevel(currentBeatmap, true);
-}
-
 // Hooks
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovementData::Init,
         void, BeatmapObjectSpawnMovementData* self, int noteLinesCount, float startNoteJumpMovementSpeed, float startBpm, BeatmapObjectSpawnMovementData::NoteJumpValueType noteJumpValueType, float noteJumpValue, IJumpOffsetYProvider* jumpOffsetYProvider, UnityEngine::Vector3 rightVec, UnityEngine::Vector3 forwardVec) {
 
     if(!getModConfig().Disable.GetValue()) {
-        if(getModConfig().UseNJS.GetValue())
-            startNoteJumpMovementSpeed = getModConfig().NJS.GetValue();
+        auto values = GetAppliedValues();
+        if(values.OverrideNJS)
+            startNoteJumpMovementSpeed = values.NJS;
 
         self->moveSpeed /= practiceSpeed;
         startNoteJumpMovementSpeed /= practiceSpeed;
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
+        noteJumpValue = values.Duration;
         // practice overrides modifiers
-        noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, practiceSpeed != 1 ? 1 : modifierSpeed);
+        // noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, practiceSpeed != 1 ? 1 : modifierSpeed);
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
@@ -113,6 +70,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
 }
 
 MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync, &LevelScenesTransitionSetupDataSO::BeforeScenesWillBeActivatedAsync, System::Threading::Tasks::Task*, LevelScenesTransitionSetupDataSO* self) {
+
     auto task = LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
 
     getLogger().info("Loading level before gameplay");
@@ -121,9 +79,15 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
     practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
-    modifierSpeed = self->gameplayCoreSceneSetupData->gameplayModifiers->get_songSpeedMul();
 
     return task;
+}
+
+MAKE_HOOK_MATCH(GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI, &GameplayModifiersPanelController::RefreshTotalMultiplierAndRankUI, void, GameplayModifiersPanelController* self) {
+
+    GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI(self);
+
+    UpdateLevel(nullptr);
 }
 
 extern "C" void setup(ModInfo& info) {
@@ -139,7 +103,7 @@ extern "C" void load() {
     il2cpp_functions::Init();
 
     getModConfig().Init(modInfo);
-    UpdateScoreSubmission();
+    UpdateScoreSubmission(getModConfig().UseNJS.GetValue());
 
     QuestUI::Init();
     QuestUI::Register::RegisterGameplaySetupMenu(modInfo, QuestUI::Register::MenuType::All, GameplaySettings);
@@ -150,5 +114,6 @@ extern "C" void load() {
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
+    INSTALL_HOOK(logger, GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI);
     getLogger().info("Installed all hooks!");
 }
