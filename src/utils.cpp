@@ -1,6 +1,5 @@
-#include "utils.hpp"
 #include "main.hpp"
-#include "config.hpp"
+#include "utils.hpp"
 
 #include "bs-utils/shared/utils.hpp"
 
@@ -249,8 +248,8 @@ void Preset::SetNJS(float value) {
         break;
     case Type::Level:
         internalLevel.NJS = value;
-        break; \
-    } \
+        break;
+    }
 }
 
 float Preset::GetNJS() {
@@ -299,6 +298,65 @@ S_PROP(bool, UseDefaults, AutoDef, SetToDefaults, false);
 S_PROP(bool, UseBounds, BoundJD, DistanceBounds, false);
 S_PROP(float, BoundMin, MinJD, DistanceMin, 0);
 S_PROP(float, BoundMax, MaxJD, DistanceMax, 0);
+
+void Preset::SetCondition(Condition value, int idx) {
+    if(type == Type::Condition) {
+        if(idx >= internalCondition.Conditions.size())
+            internalCondition.Conditions.push_back(value);
+        else
+            internalCondition.Conditions[idx] = value;
+        UpdateCondition();
+    }
+}
+
+Condition Preset::GetCondition(int idx) {
+    if(type == Type::Condition && idx < internalCondition.Conditions.size())
+        return internalCondition.Conditions[idx];
+    return {};
+}
+
+void Preset::RemoveCondition(int idx) {
+    if(type == Type::Condition && idx < internalCondition.Conditions.size()) {
+        internalCondition.Conditions.erase(internalCondition.Conditions.begin() + idx);
+        UpdateCondition();
+    }
+}
+
+int Preset::GetConditionCount() {
+    if(type == Type::Condition)
+        return internalCondition.Conditions.size();
+    return 0;
+}
+
+int Preset::GetConditionPresetIndex() {
+    if(type == Type::Condition)
+        return internalIdx;
+    return -1;
+}
+
+bool Preset::ShiftForward() {
+    if(type != Type::Condition)
+        return false;
+    auto presets = getModConfig().Presets.GetValue();
+    if(internalIdx == presets.size() - 1)
+        return false;
+    presets[internalIdx] = presets[internalIdx + 1];
+    presets[internalIdx + 1] = internalCondition;
+    internalIdx++;
+    getModConfig().Presets.SetValue(presets);
+    return true;
+}
+
+bool Preset::ShiftBackward() {
+    if(type != Type::Condition || internalIdx == 0)
+        return false;
+    auto presets = getModConfig().Presets.GetValue();
+    presets[internalIdx] = presets[internalIdx - 1];
+    presets[internalIdx - 1] = internalCondition;
+    internalIdx--;
+    getModConfig().Presets.SetValue(presets);
+    return true;
+}
 
 LevelPreset Preset::GetAsLevelPreset() {
     LevelPreset ret;

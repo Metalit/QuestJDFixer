@@ -10,7 +10,7 @@ DECLARE_JSON_CLASS(Condition,
     VALUE(int, Type)
     // 0: under, 1: over
     VALUE(int, Comparison)
-    VALUE(float, Value);
+    VALUE(float, Value)
     DISCARD_EXTRA_FIELDS
 )
 
@@ -26,7 +26,7 @@ DECLARE_JSON_CLASS(ConditionPreset,
     VALUE(float, Duration)
     VALUE(float, Distance)
     VALUE(bool, UseDuration)
-    VECTOR(Condition, Conditions)
+    VECTOR_DEFAULT(Condition, Conditions, std::vector<Condition>{{}})
     VALUE(bool, SetToDefaults)
     VALUE(bool, DistanceBounds)
     VALUE(float, DistanceMin)
@@ -49,8 +49,8 @@ DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(UseNJS, bool, "Override NJS", false, "Overrides the note jump speed (disables score submission)");
 
     CONFIG_VALUE(NJS, float, "Note Jump Speed", 18.0, "The note jump speed to set the level to");
-    CONFIG_VALUE(Presets, std::vector<ConditionPreset>, "Presets", {});
-    CONFIG_VALUE(Levels, StringKeyedMap<LevelPreset>, "Level Presets", {});
+    CONFIG_VALUE(Presets, std::vector<ConditionPreset>, "Presets", std::vector<ConditionPreset>{});
+    CONFIG_VALUE(Levels, StringKeyedMap<LevelPreset>, "Level Presets", StringKeyedMap<LevelPreset>{});
 )
 
 void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap);

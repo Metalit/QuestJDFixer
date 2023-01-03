@@ -46,6 +46,13 @@ class Preset {
     PROP(bool, UseBounds);
     PROP(float, BoundMin);
     PROP(float, BoundMax);
+    void SetCondition(Condition value, int idx);
+    Condition GetCondition(int idx);
+    void RemoveCondition(int idx);
+    int GetConditionCount();
+    int GetConditionPresetIndex();
+    bool ShiftForward();
+    bool ShiftBackward();
     LevelPreset GetAsLevelPreset();
     void UpdateLevel(Values const& levelValues);
 

@@ -1,6 +1,5 @@
 #include "main.hpp"
 #include "utils.hpp"
-#include "config.hpp"
 
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 

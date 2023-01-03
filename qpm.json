@@ -37,17 +37,12 @@
     },
     {
       "id": "config-utils",
-      "versionRange": "^1.0.0",
+      "versionRange": "^1.0.2",
       "additionalData": {}
     },
     {
       "id": "bs-utils",
       "versionRange": "^0.7.0",
-      "additionalData": {}
-    },
-    {
-      "id": "rapidjson-macros",
-      "versionRange": "^0.4.4",
       "additionalData": {}
     }
   ],

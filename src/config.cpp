@@ -1,12 +1,13 @@
 #include "main.hpp"
 #include "utils.hpp"
-#include "config.hpp"
 
 #include "beatsaber-hook/shared/utils/typedefs-wrappers.hpp"
 
 #include "GlobalNamespace/IBeatmapLevel.hpp"
 #include "HMUI/AnimatedSwitchView.hpp"
+#include "UnityEngine/UI/LayoutRebuilder.hpp"
 #include "UnityEngine/Rect.hpp"
+#include "UnityEngine/RectTransform_Axis.hpp"
 
 using namespace QuestUI;
 using namespace HMUI;
@@ -24,13 +25,17 @@ struct Indicator {
 Preset currentModifiedValues;
 
 #pragma region ui
-SliderSetting *durationSlider, *distanceSlider, *njsSlider;
+static constexpr int maxFittingConditions = 3;
+
+SliderSetting *durationSlider, *distanceSlider, *njsSlider, *minBoundSlider, *maxBoundSlider;
 ClickableText *distanceText, *durationText, *njsText;
-UnityEngine::UI::Toggle* njsToggle;
+UnityEngine::UI::Toggle *njsToggle, *useDefaultsToggle, *useBoundsToggle;
+UnityEngine::UI::Button *leftButton, *rightButton, *minusButton;
 IncrementSetting *presetIncrement;
+HMUI::SimpleTextDropdown *durDistDropdown;
 
 SafePtrUnity<UnityEngine::GameObject> settingsGO;
-UnityEngine::GameObject *mainParent, *presetsParent, *boundsParent;
+UnityEngine::GameObject *mainParent, *presetsParent, *conditionsParent, *boundsParent;
 
 template<BeatSaberUI::HasTransform P>
 SliderSetting* CreateIncrementSlider(P parent, std::string name, float value, float increment, float min, float max, auto callback, float width = 40) {
@@ -71,6 +76,15 @@ SliderSetting* ReparentSlider(SliderSetting* slider, P parent) {
     return newSlider;
 }
 
+void SetSliderBounds(SliderSetting* slider, float min, float max, float increment) {
+    slider->isInt = abs(increment - round(increment)) < 0.000001;
+    float value = slider->get_value();
+    slider->slider->set_minValue(min);
+    slider->slider->set_maxValue(max);
+    slider->slider->set_numberOfSteps(((max - min) / increment) + 1);
+    slider->set_value(value);
+}
+
 template<BeatSaberUI::HasTransform P, typename C = std::nullptr_t>
 inline auto CreateCenteredText(P parent, std::string text, C callback = nullptr) {
     auto retText = [&]() {
@@ -92,10 +106,10 @@ inline UnityEngine::UI::Button* CreateSmallButton(P parent, std::string text, au
     return button;
 }
 
-template<::QuestUI::BeatSaberUI::HasTransform P, class CV>
-inline ::HMUI::SimpleTextDropdown* CreateNonSettingDropdownEnum(P parent, ConfigUtils::ConfigValue<CV>& configValue, int currentValue, const std::vector<std::string> dropdownStrings, auto intCallback) {
+template<BeatSaberUI::HasTransform P>
+inline HMUI::SimpleTextDropdown* CreateDropdownEnum(P parent, std::string name, int currentValue, const std::vector<std::string> dropdownStrings, auto intCallback, float width = 40) {
     std::vector<StringW> dropdownStringWs(dropdownStrings.begin(), dropdownStrings.end());
-    auto object = ::QuestUI::BeatSaberUI::CreateDropdown(parent, configValue.GetName(), dropdownStringWs[currentValue], dropdownStringWs,
+    auto object = ::QuestUI::BeatSaberUI::CreateDropdown(parent, name, dropdownStringWs[currentValue], dropdownStringWs,
         [dropdownStrings, intCallback](StringW value) {
             for(int i = 0; i < dropdownStrings.size(); i++) {
                 if(value == dropdownStrings[i]) {
@@ -105,10 +119,25 @@ inline ::HMUI::SimpleTextDropdown* CreateNonSettingDropdownEnum(P parent, Config
             }
         }
     );
-    object->get_transform()->GetParent()->template GetComponent<::UnityEngine::UI::LayoutElement*>()->set_preferredHeight(7);
+    auto transform = (UnityEngine::RectTransform*) object->get_transform();
+    transform->GetParent()->template GetComponent<::UnityEngine::UI::LayoutElement*>()->set_preferredHeight(7);
+    transform->SetSizeWithCurrentAnchors(UnityEngine::RectTransform::Axis::Horizontal, width);
+    return object;
+}
+
+template<::QuestUI::BeatSaberUI::HasTransform P, class CV>
+inline HMUI::SimpleTextDropdown* CreateNonSettingDropdownEnum(P parent, ConfigUtils::ConfigValue<CV>& configValue, int currentValue, const std::vector<std::string> dropdownStrings, auto intCallback) {
+    auto object = CreateDropdownEnum(parent, configValue.GetName(), currentValue, dropdownStrings, intCallback);
     if(!configValue.GetHoverHint().empty())
         ::QuestUI::BeatSaberUI::AddHoverHint(object, configValue.GetHoverHint());
     return object;
+}
+
+template<BeatSaberUI::HasTransform P>
+inline void ReparentDropdown(HMUI::SimpleTextDropdown* dropdown, P parent) {
+    auto dropdownParent = dropdown->get_transform()->GetParent();
+    dropdown->get_transform()->SetParent(parent->get_transform(), false);
+    UnityEngine::Object::Destroy(dropdownParent->get_gameObject());
 }
 
 template<BeatSaberUI::HasTransform P, class CV>
@@ -194,9 +223,55 @@ void UpdateMainUI() {
     UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
 }
 
-void UpdatePresetUI() {
-
+void UpdateConditions() {
+    auto transform = conditionsParent->get_transform();
+    int children = transform->GetChildCount();
+    for(int i = 0; i < children; i++) {
+        if(i < currentModifiedValues.GetConditionCount() * 4) {
+            auto cond = currentModifiedValues.GetCondition(i / 4);
+            auto child = transform->GetChild(i);
+            switch(i % 4) {
+            case 0:
+                if(i != 0)
+                    child->GetComponent<HMUI::SimpleTextDropdown*>()->SelectCellWithIdx(cond.AndOr);
+                break;
+            case 1:
+                child->GetComponent<HMUI::SimpleTextDropdown*>()->SelectCellWithIdx(cond.Type);
+                break;
+            case 2:
+                child->GetComponent<HMUI::SimpleTextDropdown*>()->SelectCellWithIdx(cond.Comparison);
+                break;
+            case 3: {
+                auto slider = child->GetChild(0)->GetComponent<SliderSetting*>();
+                if(cond.Comparison == 2)
+                    SetSliderBounds(slider, 0, 1000, 10);
+                else
+                    SetSliderBounds(slider, 0, 30, 0.1);
+                slider->set_value(cond.Value);
+                break;
+            }}
+            SetActive(child, true);
+        } else
+            SetActive(transform->GetChild(i), false);
+    }
+    UnityEngine::UI::LayoutRebuilder::ForceRebuildLayoutImmediate(presetsParent->GetComponent<UnityEngine::RectTransform*>());
 }
+
+void UpdatePresetUI() {
+    auto idx = currentModifiedValues.GetConditionPresetIndex();
+    leftButton->set_interactable(idx > 0);
+    rightButton->set_interactable(idx != -1 && idx < getModConfig().Presets.GetValue().size() - 1);
+    minusButton->set_interactable(idx != -1);
+    UpdateConditions();
+    InstantSetToggle(useDefaultsToggle, currentModifiedValues.GetUseDefaults());
+    durDistDropdown->SelectCellWithIdx(currentModifiedValues.GetUseDuration());
+    InstantSetToggle(useBoundsToggle, currentModifiedValues.GetUseBounds());
+    boundsParent->SetActive(currentModifiedValues.GetUseBounds());
+    minBoundSlider->set_value(currentModifiedValues.GetBoundMin());
+    maxBoundSlider->set_value(currentModifiedValues.GetBoundMax());
+}
+
+bool UpdatePreset();
 
 void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation) {
     if(firstActivation) {
@@ -316,47 +391,138 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         presetLabel->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(20);
         presetLabel->set_alignment(TMPro::TextAlignmentOptions::MidlineLeft);
 
-        auto left = CreateSmallButton(horizontal2, "<", []() {});
-        auto right = CreateSmallButton(horizontal2, ">", []() {});
+        leftButton = CreateSmallButton(horizontal2, "<", []() {
+            if(currentModifiedValues.ShiftBackward()) {
+                presetIncrement->CurrentValue--;
+                presetIncrement->Text->SetText(presetIncrement->GetRoundedString());
+            }
+        });
+        rightButton = CreateSmallButton(horizontal2, ">", []() {
+            if(currentModifiedValues.ShiftForward()) {
+                presetIncrement->CurrentValue++;
+                presetIncrement->Text->SetText(presetIncrement->GetRoundedString());
+            }
+        });
 
-        presetIncrement = BeatSaberUI::CreateIncrementSetting(gameObject, "", 0, 1, 1, 1, getModConfig().Presets.GetValue().size() + 1, [](float preset) {
+        int presetNum = getModConfig().Presets.GetValue().size();
+        presetIncrement = BeatSaberUI::CreateIncrementSetting(gameObject, "", 0, 1, presetNum + 1, 1, presetNum + 1, [](float preset) {
             preset--; // goes 1, 2, 3... as displayed and the last is the main config
             if(preset == getModConfig().Presets.GetValue().size())
                 currentModifiedValues = Preset(currentLevelValues);
             else
                 currentModifiedValues = Preset(preset, currentLevelValues);
+            UpdatePresetUI();
         });
         SetButtons(presetIncrement);
         auto incrementObject = presetIncrement->get_transform()->GetChild(1);
         incrementObject->SetParent(horizontal2->get_transform());
         incrementObject->get_gameObject()->AddComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
 
-        CreateSmallButton(horizontal2, "-", []() {});
-        CreateSmallButton(horizontal2, "+", []() {});
+        minusButton = CreateSmallButton(horizontal2, "-", []() {
+            int idx = currentModifiedValues.GetConditionPresetIndex();
+            if(idx == -1)
+                return;
+            auto presets = getModConfig().Presets.GetValue();
+            presets.erase(presets.begin() + idx);
+            getModConfig().Presets.SetValue(presets);
+            presetIncrement->MaxValue = presets.size() + 1;
+            presetIncrement->UpdateValue();
+        });
+        CreateSmallButton(horizontal2, "+", []() {
+            auto presets = getModConfig().Presets.GetValue();
+            presets.emplace_back();
+            getModConfig().Presets.SetValue(presets);
+            presetIncrement->CurrentValue = presets.size();
+            presetIncrement->MaxValue = presets.size() + 1;
+            presetIncrement->UpdateValue();
+        });
 
-        auto horizontal3 = BeatSaberUI::CreateHorizontalLayoutGroup(presetsVertical);
-        horizontal3->set_spacing(1);
+        auto spaced2 = BeatSaberUI::CreateGridLayoutGroup(presetsVertical);
+        spaced2->set_constraint(UnityEngine::UI::GridLayoutGroup::Constraint::FixedColumnCount);
+        spaced2->set_constraintCount(4);
+        spaced2->set_cellSize({22.5, 8});
+        spaced2->set_spacing({0, 0.5});
+        spaced2->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>()->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+        conditionsParent = spaced2->get_gameObject();
 
-        CreateNonSettingToggle(presetsVertical, getModConfig().AutoDef, currentModifiedValues.GetUseDefaults(), [](bool enabled) {
+        std::vector<std::string> options1 = {"And", "Or", "Delete"};
+        std::vector<std::string> options2 = {"NPS", "NJS", "BPM"};
+        std::vector<std::string> options3 = {"Under", "Over"};
+        for(int i = 0; i < maxFittingConditions; i++) {
+            if(i == 0) {
+                auto horizontal3 = BeatSaberUI::CreateHorizontalLayoutGroup(spaced2);
+                horizontal3->set_childControlWidth(true);
+                CreateSmallButton(horizontal3, "+", []() {
+                    if(currentModifiedValues.GetConditionCount() < maxFittingConditions)
+                        currentModifiedValues.SetCondition({}, maxFittingConditions);
+                    UpdateConditions();
+                });
+                CreateCenteredText(horizontal3, "On")->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(12);
+            } else {
+                ReparentDropdown(CreateDropdownEnum(presetsVertical, "", currentModifiedValues.GetCondition(i).AndOr, options1, [i](int option) {
+                    if(option != 2) {
+                        auto cond = currentModifiedValues.GetCondition(i);
+                        cond.AndOr = option;
+                        currentModifiedValues.SetCondition(cond, i);
+                        if(UpdatePreset())
+                            UpdateMainUI();
+                    } else {
+                        currentModifiedValues.RemoveCondition(i);
+                        UpdateConditions();
+                    }
+                }, 22), spaced2);
+            }
+            ReparentDropdown(CreateDropdownEnum(presetsVertical, "", currentModifiedValues.GetCondition(i).Type, options2, [i](int option) {
+                auto cond = currentModifiedValues.GetCondition(i);
+                cond.Type = option;
+                currentModifiedValues.SetCondition(cond, i);
+                if(UpdatePreset())
+                    UpdateMainUI();
+            }, 22), spaced2);
+            ReparentDropdown(CreateDropdownEnum(presetsVertical, "", currentModifiedValues.GetCondition(i).Comparison, options3, [i](int option) {
+                auto cond = currentModifiedValues.GetCondition(i);
+                cond.Comparison = option;
+                currentModifiedValues.SetCondition(cond, i);
+                UpdateConditions();
+                if(UpdatePreset())
+                    UpdateMainUI();
+            }, 22), spaced2);
+            auto slider = BeatSaberUI::CreateSliderSetting(presetsVertical, "", 1, currentModifiedValues.GetCondition(i).Value, 0, 1000, 0, [i](float value) {
+                auto cond = currentModifiedValues.GetCondition(i);
+                cond.Value = value;
+                currentModifiedValues.SetCondition(cond, i);
+                if(UpdatePreset())
+                    UpdateMainUI();
+            });
+            auto rect = (UnityEngine::RectTransform*) slider->slider->get_transform();
+            rect->set_sizeDelta({32, 0});
+            rect->set_anchoredPosition({9.5, 0});
+            auto wrapper = UnityEngine::GameObject::New_ctor("JDFixerSliderWrapper", {(System::Type*) csTypeOf(UnityEngine::RectTransform*)});
+            wrapper->get_transform()->SetParent(spaced2->get_transform(), false);
+            ReparentSlider(slider, wrapper);
+        }
+
+        useDefaultsToggle = CreateNonSettingToggle(presetsVertical, getModConfig().AutoDef, currentModifiedValues.GetUseDefaults(), [](bool enabled) {
             currentModifiedValues.SetUseDefaults(enabled);
+            if(!currentBeatmap)
+                return;
             currentAppliedValues.UpdateLevel(currentLevelValues);
             UpdateMainUI();
         });
 
         std::vector<std::string> mainValueOptions = {"Distance", "Duration"};
-        CreateNonSettingDropdownEnum(presetsVertical, getModConfig().UseDuration, currentModifiedValues.GetUseDuration(), mainValueOptions, [](int option) {
+        durDistDropdown = CreateNonSettingDropdownEnum(presetsVertical, getModConfig().UseDuration, currentModifiedValues.GetUseDuration(), mainValueOptions, [](int option) {
             currentModifiedValues.SetUseDuration(option);
-            SetActive(durationSlider, option);
-            SetActive(distanceSlider, !option);
+            UpdateMainUI();
         });
 
-        CreateNonSettingToggle(presetsVertical, getModConfig().BoundJD, currentModifiedValues.GetUseBounds(), [](bool enabled) {
+        useBoundsToggle = CreateNonSettingToggle(presetsVertical, getModConfig().BoundJD, currentModifiedValues.GetUseBounds(), [](bool enabled) {
             currentModifiedValues.SetUseBounds(enabled);
             boundsParent->SetActive(enabled);
             UpdateTexts();
         });
 
-        boundsParent = UnityEngine::GameObject::New_ctor("JDFixerWrapperObj");
+        boundsParent = UnityEngine::GameObject::New_ctor("JDFixerBoundsParent");
         boundsParent->AddComponent<UnityEngine::RectTransform*>()->set_sizeDelta({90, 8});
         boundsParent->get_transform()->SetParent(presetsVertical->get_transform(), false);
         auto horizontal4 = BeatSaberUI::CreateHorizontalLayoutGroup(boundsParent);
@@ -364,17 +530,17 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         horizontal4->set_childControlWidth(false);
         horizontal4->get_rectTransform()->set_anchoredPosition({4, 0});
 
-        ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 1, 30, [](float value) {
+        minBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 1, 30, [](float value) {
             currentModifiedValues.SetBoundMin(value);
             UpdateTexts();
         }, 34), horizontal4);
         CreateCenteredText(horizontal4, "to");
-        ReparentSlider(CreateIncrementSlider(presetsVertical, "Max", currentModifiedValues.GetBoundMax(), 0.1, 1, 30, [](float value) {
+        maxBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Max", currentModifiedValues.GetBoundMax(), 0.1, 1, 30, [](float value) {
             currentModifiedValues.SetBoundMax(value);
             UpdateTexts();
         }, 34), horizontal4);
 
-        boundsParent->SetActive(currentModifiedValues.GetUseBounds());
+        UpdatePresetUI();
     }
     mainParent->SetActive(true);
     presetsParent->SetActive(false);
@@ -384,6 +550,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 #pragma endregion
 
 bool UpdatePreset() {
+    if(!currentBeatmap)
+        return false;
     std::string search = currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(search);
