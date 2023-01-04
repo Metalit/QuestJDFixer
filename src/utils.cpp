@@ -66,7 +66,7 @@ inline float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
     }
 }
 
-Values GetLevelDefaults(IDifficultyBeatmap* beatmap) {
+Values GetLevelDefaults(IDifficultyBeatmap* beatmap, float speed) {
     if(!beatmap)
         return {};
 
@@ -75,6 +75,7 @@ Values GetLevelDefaults(IDifficultyBeatmap* beatmap) {
     float njs = beatmap->get_noteJumpMovementSpeed();
     if(njs <= 0)
         njs = GetDefaultDifficultyNJS(beatmap->get_difficulty());
+    njs *= speed;
 
     float offset = beatmap->get_noteJumpStartBeatOffset();
 
@@ -186,12 +187,10 @@ void Preset::SetMainValue(float value) {
         UpdateCondition();
         break;
     case Type::Level:
-        if(internalLevel.UseDuration)
-            internalLevel.Duration = value;
-        else
-            internalLevel.Duration = value / GetNJS();
+        internalLevel.MainValue = value;
         break;
     }
+    modified = true;
 }
 
 float Preset::GetMainValue() {
@@ -205,9 +204,7 @@ float Preset::GetMainValue() {
             return internalCondition.Duration;
         return internalCondition.Distance;
     case Type::Level:
-        if(internalLevel.UseDuration)
-            return internalLevel.Duration;
-        return internalLevel.Duration * GetNJS();
+        return internalLevel.MainValue;
     }
 }
 
@@ -250,6 +247,7 @@ void Preset::SetNJS(float value) {
         internalLevel.NJS = value;
         break;
     }
+    modified = true;
 }
 
 float Preset::GetNJS() {
@@ -279,6 +277,7 @@ void Preset::Set##name(typ value) { \
         __VA_ARGS__; \
         break; \
     } \
+    modified = true; \
 } \
 typ Preset::Get##name() { \
     switch(type) { \
@@ -289,6 +288,7 @@ typ Preset::Get##name() { \
     case Type::Level: \
         return levelRet; \
     } \
+    modified = true; \
 }
 #define PROP(typ, name, cfgName, structName) S_PROP(typ, name, cfgName, structName, internalLevel.structName, internalLevel.structName = value)
 
@@ -307,6 +307,7 @@ void Preset::SetCondition(Condition value, int idx) {
             internalCondition.Conditions[idx] = value;
         UpdateCondition();
     }
+    modified = true;
 }
 
 Condition Preset::GetCondition(int idx) {
@@ -320,6 +321,7 @@ void Preset::RemoveCondition(int idx) {
         internalCondition.Conditions.erase(internalCondition.Conditions.begin() + idx);
         UpdateCondition();
     }
+    modified = true;
 }
 
 int Preset::GetConditionCount() {
@@ -359,14 +361,22 @@ bool Preset::ShiftBackward() {
 }
 
 LevelPreset Preset::GetAsLevelPreset() {
+    if(GetIsLevelPreset())
+        return internalLevel;
     LevelPreset ret;
     ret.UseDuration = GetUseDuration();
-    ret.Duration = GetDuration();
+    ret.MainValue = GetMainValue();
     ret.OverrideNJS = GetOverrideNJS();
     ret.NJS = GetNJS();
-    if(!ret.UseDuration)
-        ret.Duration *= ret.NJS;
     return ret;
+}
+
+bool Preset::GetIsLevelPreset() {
+    return type == Type::Level;
+}
+
+bool Preset::GetModified() {
+    return modified;
 }
 
 void Preset::UpdateLevel(Values const& levelValues) {
@@ -398,6 +408,7 @@ Preset::Preset(int conditionIdx, Values const& levelValues) {
             internalCondition.Distance = levelValues.halfJumpDistance;
         internalCondition.NJS = levelValues.njs;
         UpdateCondition();
+        modified = true;
     }
 }
 
@@ -410,6 +421,7 @@ Preset::Preset(Values const& levelValues) {
         else
             getModConfig().Distance.SetValue(levelValues.halfJumpDistance);
         getModConfig().NJS.SetValue(levelValues.njs);
+        modified = true;
     }
 }
 

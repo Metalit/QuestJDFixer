@@ -3,17 +3,13 @@
 
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 
-#include "GlobalNamespace/BeatmapObjectSpawnMovementData.hpp"
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData_NoteJumpValueType.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
-#include "GlobalNamespace/IBeatmapLevel.hpp"
-#include "GlobalNamespace/BeatmapDifficulty.hpp"
-#include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
-#include "GlobalNamespace/PlayerData.hpp"
-#include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
+#include "GlobalNamespace/PlayerDataModel.hpp"
+#include "GlobalNamespace/PlayerData.hpp"
 #include "GlobalNamespace/GameplayModifiers.hpp"
 #include "GlobalNamespace/GameplayModifiersPanelController.hpp"
 
@@ -27,6 +23,7 @@ using namespace GlobalNamespace;
 static ModInfo modInfo;
 
 float practiceSpeed = 1;
+float modifierSpeed = 1;
 
 Logger& getLogger() {
     static Logger* logger = new Logger(modInfo, {false, true});
@@ -50,9 +47,9 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         startNoteJumpMovementSpeed /= practiceSpeed;
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
-        noteJumpValue = values.Duration;
-        // practice overrides modifiers
-        // noteJumpValue = GetDesiredHalfJumpDuration(startNoteJumpMovementSpeed, practiceSpeed != 1 ? 1 : modifierSpeed);
+        noteJumpValue = values.MainValue;
+        if(!values.UseDuration)
+            noteJumpValue /= startNoteJumpMovementSpeed;
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
@@ -65,7 +62,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
 
     getLogger().info("Loading level in menu");
 
-    UpdateLevel(self->selectedDifficultyBeatmap);
+    UpdateLevel(self->selectedDifficultyBeatmap, modifierSpeed);
 }
 
 MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync, &LevelScenesTransitionSetupDataSO::BeforeScenesWillBeActivatedAsync, System::Threading::Tasks::Task*, LevelScenesTransitionSetupDataSO* self) {
@@ -74,7 +71,7 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
 
     getLogger().info("Loading level before gameplay");
 
-    UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap);
+    UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap, modifierSpeed);
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
     practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
@@ -82,11 +79,20 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     return task;
 }
 
+MAKE_HOOK_MATCH(PlayerDataModel_Load, &PlayerDataModel::Load, void, PlayerDataModel* self) {
+
+    PlayerDataModel_Load(self);
+
+    modifierSpeed = self->playerData->gameplayModifiers->get_songSpeedMul();
+}
+
 MAKE_HOOK_MATCH(GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI, &GameplayModifiersPanelController::RefreshTotalMultiplierAndRankUI, void, GameplayModifiersPanelController* self) {
 
     GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI(self);
 
-    UpdateLevel(nullptr);
+    modifierSpeed = self->gameplayModifiers->get_songSpeedMul();
+
+    UpdateLevel(nullptr, modifierSpeed);
 }
 
 extern "C" void setup(ModInfo& info) {
@@ -113,6 +119,7 @@ extern "C" void load() {
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
+    INSTALL_HOOK(logger, PlayerDataModel_Load);
     INSTALL_HOOK(logger, GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI);
     getLogger().info("Installed all hooks!");
 }

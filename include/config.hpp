@@ -15,7 +15,7 @@ DECLARE_JSON_CLASS(Condition,
 )
 
 DECLARE_JSON_CLASS(LevelPreset,
-    VALUE(float, Duration)
+    VALUE(float, MainValue)
     VALUE(bool, UseDuration)
     VALUE(bool, OverrideNJS)
     VALUE(float, NJS)
@@ -53,7 +53,7 @@ DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(Levels, StringKeyedMap<LevelPreset>, "Level Presets", StringKeyedMap<LevelPreset>{});
 )
 
-void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap);
+void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
 LevelPreset GetAppliedValues();
 
 // gameplay menu config

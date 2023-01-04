@@ -30,7 +30,7 @@ static constexpr int maxFittingConditions = 3;
 SliderSetting *durationSlider, *distanceSlider, *njsSlider, *minBoundSlider, *maxBoundSlider;
 ClickableText *distanceText, *durationText, *njsText;
 UnityEngine::UI::Toggle *njsToggle, *useDefaultsToggle, *useBoundsToggle;
-UnityEngine::UI::Button *leftButton, *rightButton, *minusButton;
+UnityEngine::UI::Button *saveButton, *removeButton, *leftButton, *rightButton, *minusButton;
 IncrementSetting *presetIncrement;
 HMUI::SimpleTextDropdown *durDistDropdown;
 
@@ -66,7 +66,9 @@ SliderSetting* ReparentSlider(SliderSetting* slider, P parent) {
     newSlider->slider = slider->slider;
     newSlider->FormatString = slider->FormatString;
     int steps = slider->slider->get_numberOfSteps();
-    newSlider->Setup(slider->slider->get_minValue(), slider->slider->get_maxValue(), slider->get_value(), 1, slider->timerResetValue, slider->OnValueChange);
+    auto callback = std::move(slider->OnValueChange);
+    slider->OnValueChange = nullptr;
+    newSlider->Setup(slider->slider->get_minValue(), slider->slider->get_maxValue(), slider->get_value(), 1, slider->timerResetValue, std::move(callback));
     newSlider->isInt = slider->isInt;
     newSlider->slider->set_numberOfSteps(steps);
     auto transform = newSlider->slider->get_transform();
@@ -83,6 +85,7 @@ void SetSliderBounds(SliderSetting* slider, float min, float max, float incremen
     slider->slider->set_maxValue(max);
     slider->slider->set_numberOfSteps(((max - min) / increment) + 1);
     slider->set_value(value);
+    slider->text->set_text(slider->TextForValue(slider->get_value()));
 }
 
 template<BeatSaberUI::HasTransform P, typename C = std::nullptr_t>
@@ -209,6 +212,11 @@ void UpdateTexts() {
     SetText(njsText, currentAppliedValues.GetNJS(), currentLevelValues.njs);
 }
 
+void UpdateLevelSaveButtons() {
+    saveButton->set_interactable(currentBeatmap && (currentAppliedValues.GetModified() || !currentAppliedValues.GetIsLevelPreset()));
+    removeButton->set_interactable(currentBeatmap && currentAppliedValues.GetIsLevelPreset());
+}
+
 void UpdateMainUI() {
     UpdateTexts();
     SetActive(durationSlider, currentAppliedValues.GetUseDuration());
@@ -221,6 +229,7 @@ void UpdateMainUI() {
     SetActive(njsSlider, currentAppliedValues.GetOverrideNJS());
     njsSlider->set_value(currentAppliedValues.GetNJS());
     UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
+    UpdateLevelSaveButtons();
 }
 
 void UpdateConditions() {
@@ -243,11 +252,11 @@ void UpdateConditions() {
                 break;
             case 3: {
                 auto slider = child->GetChild(0)->GetComponent<SliderSetting*>();
-                if(cond.Comparison == 2)
-                    SetSliderBounds(slider, 0, 1000, 10);
+                slider->set_value(cond.Value);
+                if(cond.Type == 2)
+                    SetSliderBounds(slider, 0, 500, 10);
                 else
                     SetSliderBounds(slider, 0, 30, 0.1);
-                slider->set_value(cond.Value);
                 break;
             }}
             SetActive(child, true);
@@ -257,12 +266,23 @@ void UpdateConditions() {
     UnityEngine::UI::LayoutRebuilder::ForceRebuildLayoutImmediate(presetsParent->GetComponent<UnityEngine::RectTransform*>());
 }
 
-void UpdatePresetUI() {
+void UpdatePresetControl() {
     auto idx = currentModifiedValues.GetConditionPresetIndex();
     leftButton->set_interactable(idx > 0);
     rightButton->set_interactable(idx != -1 && idx < getModConfig().Presets.GetValue().size() - 1);
     minusButton->set_interactable(idx != -1);
+    std::string str = std::to_string((int) presetIncrement->CurrentValue);
+    if(presetIncrement->CurrentValue == getModConfig().Presets.GetValue().size() + 1)
+        str = "Default";
+    presetIncrement->Text->SetText(str);
+    auto buttons = presetIncrement->Text->get_transform()->GetParent()->GetComponentsInChildren<UnityEngine::UI::Button*>();
+    buttons.First()->set_interactable(presetIncrement->CurrentValue > presetIncrement->MinValue || !presetIncrement->HasMin);
+    buttons.Last()->set_interactable(presetIncrement->CurrentValue < presetIncrement->MaxValue || !presetIncrement->HasMax);
+}
+
+void UpdatePresetUI() {
     UpdateConditions();
+    UpdatePresetControl();
     InstantSetToggle(useDefaultsToggle, currentModifiedValues.GetUseDefaults());
     durDistDropdown->SelectCellWithIdx(currentModifiedValues.GetUseDuration());
     InstantSetToggle(useBoundsToggle, currentModifiedValues.GetUseBounds());
@@ -342,31 +362,63 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), 0.05, 0.1, 1.5, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
+            UpdateLevelSaveButtons();
         }, 50);
         distanceSlider = CreateIncrementSlider(mainVertical, "Half Jump Distance", currentAppliedValues.GetMainValue(), 0.1, 1, 30, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
+            UpdateLevelSaveButtons();
         }, 50);
 
         // njs toggle
         njsToggle = CreateNonSettingToggle(mainVertical, getModConfig().UseNJS, currentAppliedValues.GetOverrideNJS(), [](bool enabled) {
             SetActive(njsSlider, enabled);
             currentAppliedValues.SetOverrideNJS(enabled);
-            UpdateScoreSubmission(enabled); // laggy on the first time, idk why
+            UpdateScoreSubmission(enabled);
             UpdateTexts();
+            UpdateLevelSaveButtons();
         });
 
         // njs slider
         njsSlider = CreateIncrementSlider(mainVertical, "", currentAppliedValues.GetNJS(), 0.1, 1, 30, [](float value) {
             currentAppliedValues.SetNJS(value);
             UpdateTexts();
+            UpdateLevelSaveButtons();
         });
         njsSlider = ReparentSlider(njsSlider, njsToggle);
         ((UnityEngine::RectTransform*) njsSlider->slider->get_transform())->set_anchoredPosition({-25, 0});
 
-        SetActive(njsSlider, currentAppliedValues.GetOverrideNJS());
-        SetActive(durationSlider, currentAppliedValues.GetUseDuration());
-        SetActive(distanceSlider, !currentAppliedValues.GetUseDuration());
+        auto horizontal1 = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
+        horizontal1->set_childControlWidth(false);
+        horizontal1->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+
+        saveButton = CreateSmallButton(horizontal1, "Save For Level", []() {
+            if(!currentBeatmap)
+                return;
+            auto levels = getModConfig().Levels.GetValue();
+            levels[currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID()] = currentAppliedValues.GetAsLevelPreset();
+            getModConfig().Levels.SetValue(levels);
+            if(UpdatePreset())
+                UpdateMainUI();
+            else {
+                currentAppliedValues = Preset(currentAppliedValues.GetAsLevelPreset(), currentLevelValues);
+                UpdateLevelSaveButtons();
+            }
+        });
+        removeButton = CreateSmallButton(horizontal1, "Remove Save", []() {
+            if(!currentBeatmap)
+                return;
+            auto levels = getModConfig().Levels.GetValue();
+            auto iter = levels.find(currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID());
+            if(iter == levels.end())
+                return;
+            levels.erase(iter);
+            getModConfig().Levels.SetValue(levels);
+            if(UpdatePreset())
+                UpdateMainUI();
+        });
+        saveButton->set_interactable(currentBeatmap && (currentAppliedValues.GetModified() || !currentAppliedValues.GetIsLevelPreset()));
+        removeButton->set_interactable(currentBeatmap && currentAppliedValues.GetIsLevelPreset());
 
         auto presetsVertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject);
         presetsVertical->set_childControlHeight(false);
@@ -394,13 +446,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         leftButton = CreateSmallButton(horizontal2, "<", []() {
             if(currentModifiedValues.ShiftBackward()) {
                 presetIncrement->CurrentValue--;
-                presetIncrement->Text->SetText(presetIncrement->GetRoundedString());
+                UpdatePresetControl();
             }
         });
         rightButton = CreateSmallButton(horizontal2, ">", []() {
             if(currentModifiedValues.ShiftForward()) {
                 presetIncrement->CurrentValue++;
-                presetIncrement->Text->SetText(presetIncrement->GetRoundedString());
+                UpdatePresetControl();
             }
         });
 
@@ -427,6 +479,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             getModConfig().Presets.SetValue(presets);
             presetIncrement->MaxValue = presets.size() + 1;
             presetIncrement->UpdateValue();
+            if(UpdatePreset())
+                UpdateMainUI();
         });
         CreateSmallButton(horizontal2, "+", []() {
             auto presets = getModConfig().Presets.GetValue();
@@ -435,6 +489,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             presetIncrement->CurrentValue = presets.size();
             presetIncrement->MaxValue = presets.size() + 1;
             presetIncrement->UpdateValue();
+            if(UpdatePreset())
+                UpdateMainUI();
         });
 
         auto spaced2 = BeatSaberUI::CreateGridLayoutGroup(presetsVertical);
@@ -476,6 +532,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Type = option;
                 currentModifiedValues.SetCondition(cond, i);
+                UpdateConditions();
                 if(UpdatePreset())
                     UpdateMainUI();
             }, 22), spaced2);
@@ -483,7 +540,6 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Comparison = option;
                 currentModifiedValues.SetCondition(cond, i);
-                UpdateConditions();
                 if(UpdatePreset())
                     UpdateMainUI();
             }, 22), spaced2);
@@ -540,6 +596,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             UpdateTexts();
         }, 34), horizontal4);
 
+        UpdateMainUI();
         UpdatePresetUI();
     }
     mainParent->SetActive(true);
@@ -588,23 +645,26 @@ bool UpdatePreset() {
     return false;
 }
 
-void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap) {
+void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed) {
+    static float lastSpeed;
+    if(!currentBeatmap)
+        lastSpeed = speed;
     if(currentBeatmap == beatmap)
         return;
     // beatmap being non null here signifies that it changed
-    if(beatmap) {
+    if(beatmap)
         currentBeatmap = beatmap;
-        currentLevelValues = GetLevelDefaults(beatmap);
-    }
+    currentLevelValues = GetLevelDefaults(currentBeatmap, speed);
     bool currentValuesChanged = UpdatePreset();
     if(currentValuesChanged)
         UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
-    else if(beatmap)
+    else if(beatmap || lastSpeed != speed)
         currentAppliedValues.UpdateLevel(currentLevelValues);
     else // if nothing was changed
         return;
     if(settingsGO)
         UpdateMainUI();
+    lastSpeed = speed;
 }
 
 LevelPreset GetAppliedValues() {

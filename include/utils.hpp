@@ -12,7 +12,7 @@ struct Values {
     float njs;
 };
 
-Values GetLevelDefaults(GlobalNamespace::IDifficultyBeatmap* beatmap);
+Values GetLevelDefaults(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
 
 float GetNPS(GlobalNamespace::IDifficultyBeatmap* beatmap);
 float GetBPM(GlobalNamespace::IDifficultyBeatmap* beatmap);
@@ -35,6 +35,7 @@ class Preset {
     void UpdateCondition();
     float levelNJS = 0;
     float Bound(float value);
+    bool modified = false;
     public:
     PROP(float, MainValue);
     PROP(float, Distance);
@@ -54,6 +55,8 @@ class Preset {
     bool ShiftForward();
     bool ShiftBackward();
     LevelPreset GetAsLevelPreset();
+    bool GetIsLevelPreset();
+    bool GetModified();
     void UpdateLevel(Values const& levelValues);
 
     Preset(LevelPreset const& preset, Values const& levelValues);
