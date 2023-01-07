@@ -14,6 +14,8 @@ using namespace HMUI;
 
 GlobalNamespace::IDifficultyBeatmap* currentBeatmap = nullptr;
 Values currentLevelValues = {};
+float lastSpeed = 0;
+float currentNps = 0;
 
 Preset currentAppliedValues;
 struct Indicator {
@@ -622,11 +624,10 @@ bool UpdatePreset() {
         }
         return false;
     }
-    float nps = GetNPS(currentBeatmap);
     float bpm = GetBPM(currentBeatmap);
     auto presets = getModConfig().Presets.GetValue();
     for(int i = 0; i < presets.size(); i++) {
-        if(ConditionMet(presets[i], currentLevelValues.njs, nps, bpm)) {
+        if(ConditionMet(presets[i], currentLevelValues.njs, currentNps, bpm)) {
             if(lastPreset.which != 1 || lastPreset.idx != i) {
                 currentAppliedValues = Preset(i, currentLevelValues);
                 lastPreset.idx = i;
@@ -646,7 +647,6 @@ bool UpdatePreset() {
 }
 
 void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed) {
-    static float lastSpeed;
     if(!currentBeatmap)
         lastSpeed = speed;
     if(currentBeatmap == beatmap)
@@ -665,6 +665,11 @@ void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed) {
     if(settingsGO)
         UpdateMainUI();
     lastSpeed = speed;
+}
+
+void UpdateNotesPerSecond(float nps) {
+    currentNps = nps;
+    UpdateLevel(nullptr, lastSpeed);
 }
 
 LevelPreset GetAppliedValues() {

@@ -5,9 +5,12 @@
 
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData_NoteJumpValueType.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
+#include "GlobalNamespace/LevelParamsPanel.hpp"
 #include "GlobalNamespace/LevelScenesTransitionSetupDataSO.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
+#include "GlobalNamespace/BeatmapDataTransformHelper.hpp"
+#include "GlobalNamespace/EnvironmentEffectsFilterPreset.hpp"
 #include "GlobalNamespace/PlayerDataModel.hpp"
 #include "GlobalNamespace/PlayerData.hpp"
 #include "GlobalNamespace/GameplayModifiers.hpp"
@@ -58,6 +61,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
 }
 
 MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
+
     StandardLevelDetailView_RefreshContent(self);
 
     getLogger().info("Loading level in menu");
@@ -65,18 +69,29 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
     UpdateLevel(self->selectedDifficultyBeatmap, modifierSpeed);
 }
 
+MAKE_HOOK_MATCH(LevelParamsPanel_set_notesPerSecond, &LevelParamsPanel::set_notesPerSecond, void, LevelParamsPanel* self, float value) {
+
+    LevelParamsPanel_set_notesPerSecond(self, value);
+
+    UpdateNotesPerSecond(value);
+}
+
 MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync, &LevelScenesTransitionSetupDataSO::BeforeScenesWillBeActivatedAsync, System::Threading::Tasks::Task*, LevelScenesTransitionSetupDataSO* self) {
-
-    auto task = LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
-
-    getLogger().info("Loading level before gameplay");
 
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap, modifierSpeed);
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
     practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
 
-    return task;
+    return LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
+}
+
+MAKE_HOOK_MATCH(BeatmapDataTransformHelper_CreateTransformedBeatmapData, &BeatmapDataTransformHelper::CreateTransformedBeatmapData,
+        IReadonlyBeatmapData*, IReadonlyBeatmapData* beatmapData, IPreviewBeatmapLevel* beatmapLevel, GameplayModifiers* gameplayModifiers, bool leftHanded, EnvironmentEffectsFilterPreset environmentEffectsFilterPreset, EnvironmentIntensityReductionOptions* environmentIntensityReductionOptions, MainSettingsModelSO* mainSettingsModel) {
+
+    UpdateNotesPerSecond(GetNPS(beatmapLevel, beatmapData));
+
+    return BeatmapDataTransformHelper_CreateTransformedBeatmapData(beatmapData, beatmapLevel, gameplayModifiers, leftHanded, environmentEffectsFilterPreset, environmentIntensityReductionOptions, mainSettingsModel);
 }
 
 MAKE_HOOK_MATCH(PlayerDataModel_Load, &PlayerDataModel::Load, void, PlayerDataModel* self) {
@@ -118,7 +133,9 @@ extern "C" void load() {
     // Install hooks
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
+    INSTALL_HOOK(logger, LevelParamsPanel_set_notesPerSecond);
     INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
+    INSTALL_HOOK(logger, BeatmapDataTransformHelper_CreateTransformedBeatmapData);
     INSTALL_HOOK(logger, PlayerDataModel_Load);
     INSTALL_HOOK(logger, GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI);
     getLogger().info("Installed all hooks!");

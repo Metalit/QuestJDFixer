@@ -5,7 +5,7 @@
 
 #include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
 #include "GlobalNamespace/CustomDifficultyBeatmap.hpp"
-#include "GlobalNamespace/BeatmapDataBasicInfo.hpp"
+#include "GlobalNamespace/IBeatmapDataBasicInfo.hpp"
 #include "GlobalNamespace/BeatmapLevelSO_DifficultyBeatmap.hpp"
 #include "GlobalNamespace/BeatmapDataSO.hpp"
 #include "BeatmapSaveDataVersion3/BeatmapSaveData.hpp"
@@ -89,17 +89,10 @@ Values GetLevelDefaults(IDifficultyBeatmap* beatmap, float speed) {
     };
 }
 
-float GetNPS(IDifficultyBeatmap* beatmap) {
-    float length = ((IPreviewBeatmapLevel*) beatmap->get_level())->get_songDuration();
-    if(auto custom = il2cpp_utils::try_cast<CustomDifficultyBeatmap>(beatmap)) {
-        int noteCount = custom.value()->beatmapDataBasicInfo->get_cuttableNotesCount();
-        return noteCount / length;
-    } else if(auto object = il2cpp_utils::try_cast<BeatmapLevelSO::DifficultyBeatmap>(beatmap)) {
-        auto saveData = BeatmapSaveDataVersion3::BeatmapSaveData::DeserializeFromJSONString(object.value()->beatmapData->jsonData);
-        int noteCount = BeatmapDataLoader::GetBeatmapDataBasicInfoFromSaveData(saveData)->cuttableNotesCount;
-        return noteCount / length;
-    }
-    return 0;
+float GetNPS(IPreviewBeatmapLevel* level, IReadonlyBeatmapData* data) {
+    float length = level->get_songDuration();
+    int noteCount = data->i_IBeatmapDataBasicInfo()->get_cuttableNotesCount();
+    return noteCount / length;
 }
 float GetBPM(IDifficultyBeatmap* beatmap) {
     return ((IPreviewBeatmapLevel*) beatmap->get_level())->get_beatsPerMinute();

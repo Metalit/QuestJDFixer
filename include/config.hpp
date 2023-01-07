@@ -23,16 +23,16 @@ DECLARE_JSON_CLASS(LevelPreset,
 )
 
 DECLARE_JSON_CLASS(ConditionPreset,
-    VALUE(float, Duration)
-    VALUE(float, Distance)
-    VALUE(bool, UseDuration)
+    VALUE_DEFAULT(float, Duration, 0.5)
+    VALUE_DEFAULT(float, Distance, 10)
+    VALUE_DEFAULT(bool, UseDuration, true)
     VECTOR_DEFAULT(Condition, Conditions, std::vector<Condition>{{}})
     VALUE(bool, SetToDefaults)
     VALUE(bool, DistanceBounds)
     VALUE(float, DistanceMin)
     VALUE(float, DistanceMax)
     VALUE(bool, OverrideNJS)
-    VALUE(float, NJS)
+    VALUE_DEFAULT(float, NJS, 18)
     DISCARD_EXTRA_FIELDS
 )
 
@@ -54,6 +54,7 @@ DECLARE_CONFIG(ModConfig,
 )
 
 void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
+void UpdateNotesPerSecond(float nps);
 LevelPreset GetAppliedValues();
 
 // gameplay menu config

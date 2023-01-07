@@ -3,6 +3,7 @@
 #include "config.hpp"
 
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
+#include "GlobalNamespace/IReadonlyBeatmapData.hpp"
 
 float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
 
@@ -14,7 +15,7 @@ struct Values {
 
 Values GetLevelDefaults(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
 
-float GetNPS(GlobalNamespace::IDifficultyBeatmap* beatmap);
+float GetNPS(GlobalNamespace::IPreviewBeatmapLevel* beatmap, GlobalNamespace::IReadonlyBeatmapData* data);
 float GetBPM(GlobalNamespace::IDifficultyBeatmap* beatmap);
 
 float GetValue(Values& values, int id);
