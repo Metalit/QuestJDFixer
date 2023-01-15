@@ -104,17 +104,18 @@ inline auto CreateCenteredText(P parent, std::string text, C callback = nullptr)
 }
 
 template<BeatSaberUI::HasTransform P>
-inline UnityEngine::UI::Button* CreateSmallButton(P parent, std::string text, auto callback) {
+inline UnityEngine::UI::Button* CreateSmallButton(P parent, std::string text, auto callback, std::string hint = "") {
     auto button = BeatSaberUI::CreateUIButton(parent, text, callback);
     static ConstString contentName("Content");
     UnityEngine::Object::Destroy(button->get_transform()->Find(contentName)->template GetComponent<UnityEngine::UI::LayoutElement*>());
+    if(!hint.empty()) BeatSaberUI::AddHoverHint(button, hint);
     return button;
 }
 
 template<BeatSaberUI::HasTransform P>
 inline HMUI::SimpleTextDropdown* CreateDropdownEnum(P parent, std::string name, int currentValue, const std::vector<std::string> dropdownStrings, auto intCallback, float width = 40) {
     std::vector<StringW> dropdownStringWs(dropdownStrings.begin(), dropdownStrings.end());
-    auto object = ::QuestUI::BeatSaberUI::CreateDropdown(parent, name, dropdownStringWs[currentValue], dropdownStringWs,
+    auto object = BeatSaberUI::CreateDropdown(parent, name, dropdownStringWs[currentValue], dropdownStringWs,
         [dropdownStrings, intCallback](StringW value) {
             for(int i = 0; i < dropdownStrings.size(); i++) {
                 if(value == dropdownStrings[i]) {
@@ -156,12 +157,15 @@ inline UnityEngine::UI::Toggle* CreateNonSettingToggle(P parent, ConfigUtils::Co
 
 template<BeatSaberUI::HasTransform P>
 inline UnityEngine::UI::Toggle* AddConfigValueToggle(P parent, ConfigUtils::ConfigValue<bool>& configValue, auto callback) {
-    return CreateNonSettingToggle(parent, configValue, configValue.GetValue(),
+    auto object = CreateNonSettingToggle(parent, configValue, configValue.GetValue(),
         [&configValue, callback](bool value) {
             configValue.SetValue(value);
             callback(value);
         }
     );
+    if(!configValue.GetHoverHint().empty())
+        BeatSaberUI::AddHoverHint(object, configValue.GetHoverHint());
+    return object;
 }
 
 inline void InstantSetToggle(UnityEngine::UI::Toggle* toggle, bool value) {
