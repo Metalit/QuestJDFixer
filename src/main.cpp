@@ -60,13 +60,23 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
     BeatmapObjectSpawnMovementData_Init(self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec);
 }
 
-MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
+#include "GlobalNamespace/BeatmapLevelDataExtensions.hpp"
+#include "GlobalNamespace/IBeatmapLevel.hpp"
+#include "GlobalNamespace/BeatmapCharacteristicSegmentedControlController.hpp"
+#include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 
-    StandardLevelDetailView_RefreshContent(self);
+MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
 
     getLogger().info("Loading level in menu");
 
-    UpdateLevel(self->selectedDifficultyBeatmap, modifierSpeed);
+    auto map = BeatmapLevelDataExtensions::GetDifficultyBeatmap(
+        self->level->get_beatmapLevelData(),
+        self->beatmapCharacteristicSegmentedControlController->selectedBeatmapCharacteristic,
+        self->beatmapDifficultySegmentedControlController->selectedDifficulty
+    );
+    UpdateLevel(map, modifierSpeed);
+
+    StandardLevelDetailView_RefreshContent(self);
 }
 
 MAKE_HOOK_MATCH(LevelParamsPanel_set_notesPerSecond, &LevelParamsPanel::set_notesPerSecond, void, LevelParamsPanel* self, float value) {
