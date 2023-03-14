@@ -32,11 +32,12 @@ class Preset {
     Type type = Type::Main;
     LevelPreset internalLevel;
     ConditionPreset internalCondition;
+    std::string internalLevelID;
+    void UpdateLevelPreset();
     int internalIdx;
     void UpdateCondition();
     float levelNJS = 0;
     float Bound(float value);
-    bool modified = false;
     public:
     PROP(float, MainValue);
     PROP(float, Distance);
@@ -57,10 +58,9 @@ class Preset {
     bool ShiftBackward();
     LevelPreset GetAsLevelPreset();
     bool GetIsLevelPreset();
-    bool GetModified();
     void UpdateLevel(Values const& levelValues);
 
-    Preset(LevelPreset const& preset, Values const& levelValues);
+    Preset(std::string levelID, Values const& levelValues);
     Preset(int conditionIdx, Values const& levelValues);
     Preset(Values const& levelValues);
     Preset() = default;

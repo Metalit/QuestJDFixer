@@ -137,6 +137,12 @@ bool ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm)
     return matches;
 }
 
+void Preset::UpdateLevelPreset() {
+    auto levels = getModConfig().Levels.GetValue();
+    levels[internalLevelID] = internalLevel;
+    getModConfig().Levels.SetValue(levels);
+}
+
 void Preset::UpdateCondition() {
     auto presets = getModConfig().Presets.GetValue();
     presets[internalIdx] = internalCondition;
@@ -181,9 +187,9 @@ void Preset::SetMainValue(float value) {
         break;
     case Type::Level:
         internalLevel.MainValue = value;
+        UpdateLevelPreset();
         break;
     }
-    modified = true;
 }
 
 float Preset::GetMainValue() {
@@ -238,9 +244,9 @@ void Preset::SetNJS(float value) {
         break;
     case Type::Level:
         internalLevel.NJS = value;
+        UpdateLevelPreset();
         break;
     }
-    modified = true;
 }
 
 float Preset::GetNJS() {
@@ -270,7 +276,6 @@ void Preset::Set##name(typ value) { \
         __VA_ARGS__; \
         break; \
     } \
-    modified = true; \
 } \
 typ Preset::Get##name() { \
     switch(type) { \
@@ -281,9 +286,8 @@ typ Preset::Get##name() { \
     case Type::Level: \
         return levelRet; \
     } \
-    modified = true; \
 }
-#define PROP(typ, name, cfgName, structName) S_PROP(typ, name, cfgName, structName, internalLevel.structName, internalLevel.structName = value)
+#define PROP(typ, name, cfgName, structName) S_PROP(typ, name, cfgName, structName, internalLevel.structName, internalLevel.structName = value; UpdateLevelPreset())
 
 PROP(bool, OverrideNJS, UseNJS, OverrideNJS);
 PROP(bool, UseDuration, UseDuration, UseDuration);
@@ -300,7 +304,6 @@ void Preset::SetCondition(Condition value, int idx) {
             internalCondition.Conditions[idx] = value;
         UpdateCondition();
     }
-    modified = true;
 }
 
 Condition Preset::GetCondition(int idx) {
@@ -314,7 +317,6 @@ void Preset::RemoveCondition(int idx) {
         internalCondition.Conditions.erase(internalCondition.Conditions.begin() + idx);
         UpdateCondition();
     }
-    modified = true;
 }
 
 int Preset::GetConditionCount() {
@@ -368,10 +370,6 @@ bool Preset::GetIsLevelPreset() {
     return type == Type::Level;
 }
 
-bool Preset::GetModified() {
-    return modified;
-}
-
 void Preset::UpdateLevel(Values const& levelValues) {
     levelNJS = levelValues.njs;
     if(!GetUseDefaults())
@@ -383,9 +381,10 @@ void Preset::UpdateLevel(Values const& levelValues) {
     SetNJS(levelNJS);
 }
 
-Preset::Preset(LevelPreset const& preset, Values const& levelValues) {
+Preset::Preset(std::string levelID, Values const& levelValues) {
     type = Type::Level;
-    internalLevel = preset;
+    internalLevelID = levelID;
+    internalLevel = getModConfig().Levels.GetValue()[levelID];
     levelNJS = levelValues.njs;
 }
 
@@ -401,7 +400,6 @@ Preset::Preset(int conditionIdx, Values const& levelValues) {
             internalCondition.Distance = levelValues.halfJumpDistance;
         internalCondition.NJS = levelValues.njs;
         UpdateCondition();
-        modified = true;
     }
 }
 
@@ -414,7 +412,6 @@ Preset::Preset(Values const& levelValues) {
         else
             getModConfig().Distance.SetValue(levelValues.halfJumpDistance);
         getModConfig().NJS.SetValue(levelValues.njs);
-        modified = true;
     }
 }
 

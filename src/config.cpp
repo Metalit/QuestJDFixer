@@ -23,6 +23,7 @@ struct Indicator {
     int idx = -1;
     bool which = 1;
 }; Indicator lastPreset;
+bool hasLevelPreset;
 
 Preset currentModifiedValues;
 
@@ -31,10 +32,11 @@ static constexpr int maxFittingConditions = 3;
 
 SliderSetting *durationSlider, *distanceSlider, *njsSlider, *minBoundSlider, *maxBoundSlider;
 ClickableText *distanceText, *durationText, *njsText;
-UnityEngine::UI::Toggle *njsToggle, *useDefaultsToggle, *useBoundsToggle;
-UnityEngine::UI::Button *saveButton, *removeButton, *leftButton, *rightButton, *minusButton;
+UnityEngine::UI::Toggle *njsToggle, *useDefaultsToggle, *useBoundsToggle, *levelSaveToggle;
+UnityEngine::UI::Button *removeButton, *leftButton, *rightButton, *minusButton;
 IncrementSetting *presetIncrement;
 HMUI::SimpleTextDropdown *durDistDropdown;
+TMPro::TextMeshProUGUI *levelStatusText;
 
 SafePtrUnity<UnityEngine::GameObject> settingsGO;
 UnityEngine::GameObject *mainParent, *presetsParent, *conditionsParent, *boundsParent;
@@ -218,9 +220,10 @@ void UpdateTexts() {
     SetText(njsText, currentAppliedValues.GetNJS(), currentLevelValues.njs);
 }
 
-void UpdateLevelSaveButtons() {
-    saveButton->set_interactable(currentBeatmap && (currentAppliedValues.GetModified() || !currentAppliedValues.GetIsLevelPreset()));
-    removeButton->set_interactable(currentBeatmap && currentAppliedValues.GetIsLevelPreset());
+void UpdateLevelSaveStatus() {
+    InstantSetToggle(levelSaveToggle, currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active);
+    levelStatusText->set_text(hasLevelPreset ? "Preset Exists" : "No Preset Exists");
+    removeButton->set_interactable(hasLevelPreset);
 }
 
 void UpdateMainUI() {
@@ -235,7 +238,7 @@ void UpdateMainUI() {
     SetActive(njsSlider, currentAppliedValues.GetOverrideNJS());
     njsSlider->set_value(currentAppliedValues.GetNJS());
     UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
-    UpdateLevelSaveButtons();
+    UpdateLevelSaveStatus();
 }
 
 void UpdateConditions() {
@@ -368,12 +371,10 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), 0.05, 0.1, 1.5, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
-            UpdateLevelSaveButtons();
         }, 50);
         distanceSlider = CreateIncrementSlider(mainVertical, "Half Jump Distance", currentAppliedValues.GetMainValue(), 0.1, 1, 30, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
-            UpdateLevelSaveButtons();
         }, 50);
 
         // njs toggle
@@ -382,36 +383,40 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             currentAppliedValues.SetOverrideNJS(enabled);
             UpdateScoreSubmission(enabled);
             UpdateTexts();
-            UpdateLevelSaveButtons();
         });
 
         // njs slider
         njsSlider = CreateIncrementSlider(mainVertical, "", currentAppliedValues.GetNJS(), 0.1, 1, 30, [](float value) {
             currentAppliedValues.SetNJS(value);
             UpdateTexts();
-            UpdateLevelSaveButtons();
         });
         njsSlider = ReparentSlider(njsSlider, njsToggle);
         ((UnityEngine::RectTransform*) njsSlider->slider->get_transform())->set_anchoredPosition({-25, 0});
 
         auto horizontal1 = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
-        horizontal1->set_childControlWidth(false);
         horizontal1->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        horizontal1->set_childForceExpandWidth(false);
+        horizontal1->set_spacing(1);
 
-        saveButton = CreateSmallButton(horizontal1, "Save For Level", []() {
+        bool presetActive = currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active;
+        levelSaveToggle = BeatSaberUI::CreateToggle(horizontal1, "Level Specifc Settings", presetActive, [](bool enabled) {
             if(!currentBeatmap)
                 return;
             auto levels = getModConfig().Levels.GetValue();
-            levels[currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID()] = currentAppliedValues.GetAsLevelPreset();
+            std::string search = currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
+            if(levels.count(search) == 0)
+                levels[search] = currentAppliedValues.GetAsLevelPreset();
+            levels[search].Active = enabled;
             getModConfig().Levels.SetValue(levels);
             if(UpdatePreset())
                 UpdateMainUI();
-            else {
-                currentAppliedValues = Preset(currentAppliedValues.GetAsLevelPreset(), currentLevelValues);
-                UpdateLevelSaveButtons();
-            }
         });
-        removeButton = CreateSmallButton(horizontal1, "Remove Save", []() {
+        BeatSaberUI::AddHoverHint(levelSaveToggle, "Use and change settings specifically for the currently selected level instead of a preset");
+        levelSaveToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(50);
+
+        levelStatusText = CreateCenteredText(horizontal1, hasLevelPreset ? "Override Exists" : "No Override Exists");
+        levelStatusText->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
+        removeButton = CreateSmallButton(horizontal1, "X", []() {
             if(!currentBeatmap)
                 return;
             auto levels = getModConfig().Levels.GetValue();
@@ -422,9 +427,11 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             getModConfig().Levels.SetValue(levels);
             if(UpdatePreset())
                 UpdateMainUI();
-        });
-        saveButton->set_interactable(currentBeatmap && (currentAppliedValues.GetModified() || !currentAppliedValues.GetIsLevelPreset()));
-        removeButton->set_interactable(currentBeatmap && currentAppliedValues.GetIsLevelPreset());
+            else
+                UpdateLevelSaveStatus();
+        }, "Remove Preset");
+        removeButton->set_interactable(hasLevelPreset);
+        ((UnityEngine::RectTransform*) removeButton->get_transform())->set_sizeDelta({8, 8});
 
         auto presetsVertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject);
         presetsVertical->set_childControlHeight(false);
@@ -619,15 +626,19 @@ bool UpdatePreset() {
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(search);
     if(iter != map.end()) {
-        // only reset when preset changes
-        if(lastPreset.which != 0 || lastPreset.id != search) {
-            currentAppliedValues = Preset(iter->second, currentLevelValues);
-            lastPreset.id = search;
-            lastPreset.which = 0;
-            return true;
+        hasLevelPreset = true;
+        if(iter->second.Active) {
+            // only reset when preset changes
+            if(lastPreset.which != 0 || lastPreset.id != search) {
+                currentAppliedValues = Preset(search, currentLevelValues);
+                lastPreset.id = search;
+                lastPreset.which = 0;
+                return true;
+            }
+            return false;
         }
-        return false;
-    }
+    } else
+        hasLevelPreset = false;
     float bpm = GetBPM(currentBeatmap);
     auto presets = getModConfig().Presets.GetValue();
     for(int i = 0; i < presets.size(); i++) {

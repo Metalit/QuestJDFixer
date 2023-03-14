@@ -19,6 +19,7 @@ DECLARE_JSON_CLASS(LevelPreset,
     VALUE(bool, UseDuration)
     VALUE(bool, OverrideNJS)
     VALUE(float, NJS)
+    VALUE_DEFAULT(bool, Active, true)
     DISCARD_EXTRA_FIELDS
 )
 
