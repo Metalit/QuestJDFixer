@@ -9,6 +9,8 @@
 #include "UnityEngine/Rect.hpp"
 #include "UnityEngine/RectTransform_Axis.hpp"
 
+#include <iomanip>
+
 using namespace QuestUI;
 using namespace HMUI;
 
@@ -43,7 +45,7 @@ UnityEngine::GameObject *mainParent, *presetsParent, *conditionsParent, *boundsP
 
 template<BeatSaberUI::HasTransform P>
 SliderSetting* CreateIncrementSlider(P parent, std::string name, float value, float increment, float min, float max, auto callback, float width = 40) {
-    auto slider = BeatSaberUI::CreateSliderSetting(parent, name, 0.01, value, min, max, 0, callback);
+    SliderSetting* slider = BeatSaberUI::CreateSliderSetting(parent, name, increment, value, min, max, 0, callback);
 
     ((UnityEngine::RectTransform*) slider->get_transform())->set_sizeDelta({0, 8});
 
@@ -52,11 +54,15 @@ SliderSetting* CreateIncrementSlider(P parent, std::string name, float value, fl
     // transform->set_anchoredPosition({14 - width/2, 0});
     transform->set_sizeDelta({width, 0});
 
-    auto leftButton = BeatSaberUI::CreateUIButton(transform, "", "DecButton", {-width/2 - 2, 0}, {6, 8}, [slider = slider->slider, increment](){
+    auto leftButton = BeatSaberUI::CreateUIButton(transform, "", "DecButton", {-width/2 - 2, 0}, {6, 8}, [slider = slider->slider](){
+        float min = slider->minValue, max = slider->maxValue;
+        float increment = min == max ? 0 : (max - min) / (slider->get_numberOfSteps() - 1);
         float newValue = slider->get_value() - increment;
         slider->SetNormalizedValue(slider->NormalizeValue(newValue));
     });
-    auto rightButton = QuestUI::BeatSaberUI::CreateUIButton(transform, "", "IncButton", {width/2 + 2, 0}, {8, 8}, [slider = slider->slider, increment](){
+    auto rightButton = QuestUI::BeatSaberUI::CreateUIButton(transform, "", "IncButton", {width/2 + 2, 0}, {8, 8}, [slider = slider->slider](){
+        float min = slider->minValue, max = slider->maxValue;
+        float increment = min == max ? 0 : (max - min) / (slider->get_numberOfSteps() - 1);
         float newValue = slider->get_value() + increment;
         slider->SetNormalizedValue(slider->NormalizeValue(newValue));
     });
@@ -186,11 +192,19 @@ inline void SetActive(T* component, bool active) {
     component->get_gameObject()->SetActive(active);
 }
 
+inline std::string FormatDecimals(float value, int decimals) {
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(decimals) << value;
+    return stream.str();
+}
+
 inline void SetText(TMPro::TextMeshProUGUI* text, float main, float secondary) {
-    if(abs(main - secondary) < 0.005 || secondary == 0)
-        text->set_text(string_format("<#5ec462>%.1f", secondary));
+    std::string mainStr = FormatDecimals(main, getModConfig().Decimals.GetValue() - 1);
+    std::string secondaryStr = FormatDecimals(secondary, getModConfig().Decimals.GetValue() - 1);
+    if(mainStr == secondaryStr || secondary == 0)
+        text->set_text(string_format("<#5ec462>%s", secondaryStr.c_str()));
     else
-        text->set_text(string_format("<#ff6969>%.1f <size=75%%><#5ec462>(%.1f)", main, secondary));
+        text->set_text(string_format("<#ff6969>%s <size=75%%><#5ec462>(%s)", mainStr.c_str(), secondaryStr.c_str()));
 }
 
 inline void ReplaceAll(std::string& text, std::string_view repl, std::string_view fill) {
@@ -224,6 +238,14 @@ void UpdateLevelSaveStatus() {
     InstantSetToggle(levelSaveToggle, currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active);
     levelStatusText->set_text(hasLevelPreset ? "Settings Exist" : "No Settings Exist");
     removeButton->set_interactable(hasLevelPreset);
+}
+
+void UpdateDecimals() {
+    UpdateTexts();
+    float newIncrements = 1.0 / pow(10, getModConfig().Decimals.GetValue());
+    SetSliderBounds(durationSlider, durationSlider->slider->minValue, durationSlider->slider->maxValue, newIncrements);
+    SetSliderBounds(distanceSlider, distanceSlider->slider->minValue, distanceSlider->slider->maxValue, newIncrements);
+    SetSliderBounds(njsSlider, njsSlider->slider->minValue, njsSlider->slider->maxValue, newIncrements);
 }
 
 void UpdateMainUI() {
@@ -262,10 +284,13 @@ void UpdateConditions() {
             case 3: {
                 auto slider = child->GetChild(0)->GetComponent<SliderSetting*>();
                 slider->set_value(cond.Value);
-                if(cond.Type == 2)
+                if(cond.Type == 2) {
+                    slider->FormatString = nullptr;
                     SetSliderBounds(slider, 0, 1000, 10);
-                else
+                } else {
+                    slider->FormatString = [](float value) { return FormatDecimals(value, 1); };
                     SetSliderBounds(slider, 0, 30, 0.1);
+                }
                 break;
             }}
             SetActive(child, true);
@@ -357,7 +382,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             currentAppliedValues.SetDistance(currentLevelValues.halfJumpDistance);
             UpdateMainUI();
         });
-        SetText(distanceText, 12, 23.1);
+        SetText(distanceText, 0, 0);
         distanceText->get_onPointerEnterEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Highlight(distanceText); });
         distanceText->get_onPointerExitEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Unhighlight(distanceText); });
 
@@ -365,21 +390,26 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             currentAppliedValues.SetNJS(currentLevelValues.njs);
             UpdateMainUI();
         });
-        SetText(njsText, 3, 16);
+        SetText(njsText, 0, 0);
         njsText->get_onPointerEnterEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Highlight(njsText); });
         njsText->get_onPointerExitEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Unhighlight(njsText); });
 
         for(int i = 0; i < spaced->get_transform()->GetChildCount(); i++)
             BeatSaberUI::AddHoverHint(spaced->get_transform()->GetChild(i), "The default for the level (green) and the applied (red) values. Click to set to the level default");
 
-        durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), 0.05, 0.1, 1.5, [](float value) {
+        auto decimalFormat = [](float value) { return FormatDecimals(value, getModConfig().Decimals.GetValue()); };
+        float decimalIncrement = 1.0 / pow(10, getModConfig().Decimals.GetValue());
+
+        durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), decimalIncrement, 0.1, 1.5, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
         }, 50);
-        distanceSlider = CreateIncrementSlider(mainVertical, "Half Jump Distance", currentAppliedValues.GetMainValue(), 0.1, 1, 30, [](float value) {
+        durationSlider->FormatString = decimalFormat;
+        distanceSlider = CreateIncrementSlider(mainVertical, "Half Jump Distance", currentAppliedValues.GetMainValue(), decimalIncrement, 1, 30, [](float value) {
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
         }, 50);
+        distanceSlider->FormatString = decimalFormat;
 
         // njs toggle
         njsToggle = CreateNonSettingToggle(mainVertical, getModConfig().UseNJS, currentAppliedValues.GetOverrideNJS(), [](bool enabled) {
@@ -390,7 +420,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         });
 
         // njs slider
-        njsSlider = CreateIncrementSlider(mainVertical, "", currentAppliedValues.GetNJS(), 0.1, 1, 30, [](float value) {
+        njsSlider = CreateIncrementSlider(mainVertical, "", currentAppliedValues.GetNJS(), decimalIncrement, 1, 30, [](float value) {
             currentAppliedValues.SetNJS(value);
             UpdateTexts();
         });
@@ -442,6 +472,11 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 
         AddConfigValueToggle(horizontal2, getModConfig().Practice)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
         AddConfigValueToggle(horizontal2, getModConfig().Half)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
+        auto decimalIncrementSetting = AddConfigValueIncrementInt(mainVertical, getModConfig().Decimals, 1, 1, 3);
+        decimalIncrementSetting->OnValueChange = [oldCallback = std::move(decimalIncrementSetting->OnValueChange)](float value) {
+            oldCallback(value);
+            UpdateDecimals();
+        };
 
         auto presetsVertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject);
         presetsVertical->set_childControlHeight(false);
@@ -613,11 +648,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             currentModifiedValues.SetBoundMin(value);
             UpdateTexts();
         }, 34), horizontal5);
+        minBoundSlider->FormatString = [](float value) { return FormatDecimals(value, 1); };
         CreateCenteredText(horizontal5, "to");
         maxBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Max", currentModifiedValues.GetBoundMax(), 0.1, 1, 30, [](float value) {
             currentModifiedValues.SetBoundMax(value);
             UpdateTexts();
         }, 34), horizontal5);
+        maxBoundSlider->FormatString = [](float value) { return FormatDecimals(value, 1); };
 
         UpdateMainUI();
         UpdatePresetUI();
