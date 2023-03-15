@@ -150,24 +150,12 @@ void Preset::UpdateCondition() {
 }
 
 float Preset::Bound(float value) {
-    switch(type) {
-    case Type::Main:
-        if(!getModConfig().BoundJD.GetValue())
-            return value;
-        if(getModConfig().UseDuration.GetValue())
-            return BoundDuration(value, getModConfig().MinJD.GetValue(), getModConfig().MaxJD.GetValue(), GetNJS());
-        else
-            return BoundDistance(value, getModConfig().MinJD.GetValue(), getModConfig().MaxJD.GetValue());
-    case Type::Condition:
-        if(!internalCondition.DistanceBounds)
-            return value;
-        if(internalCondition.UseDuration)
-            return BoundDuration(value, internalCondition.DistanceMin, internalCondition.DistanceMax, GetNJS());
-        else
-            return BoundDistance(value, internalCondition.DistanceMin, internalCondition.DistanceMax);
-    case Type::Level:
+    if(!GetUseBounds())
         return value;
-    }
+    if(GetUseDuration())
+        return BoundDuration(value, GetBoundMin(), GetBoundMax(), GetNJS());
+    else
+        return BoundDistance(value, GetBoundMin(), GetBoundMax());
 }
 
 void Preset::SetMainValue(float value) {

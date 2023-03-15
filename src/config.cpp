@@ -599,7 +599,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         horizontal4->set_childControlWidth(false);
         horizontal4->get_rectTransform()->set_anchoredPosition({4, 0});
 
-        minBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 1, 30, [](float value) {
+        minBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 0, 30, [](float value) {
             currentModifiedValues.SetBoundMin(value);
             UpdateTexts();
         }, 34), horizontal4);
