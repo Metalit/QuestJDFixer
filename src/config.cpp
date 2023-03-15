@@ -222,7 +222,7 @@ void UpdateTexts() {
 
 void UpdateLevelSaveStatus() {
     InstantSetToggle(levelSaveToggle, currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active);
-    levelStatusText->set_text(hasLevelPreset ? "Preset Exists" : "No Preset Exists");
+    levelStatusText->set_text(hasLevelPreset ? "Settings Exist" : "No Settings Exist");
     removeButton->set_interactable(hasLevelPreset);
 }
 
@@ -263,7 +263,7 @@ void UpdateConditions() {
                 auto slider = child->GetChild(0)->GetComponent<SliderSetting*>();
                 slider->set_value(cond.Value);
                 if(cond.Type == 2)
-                    SetSliderBounds(slider, 0, 500, 10);
+                    SetSliderBounds(slider, 0, 1000, 10);
                 else
                     SetSliderBounds(slider, 0, 30, 0.1);
                 break;
@@ -327,7 +327,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         CreateSmallButton(horizontal, "Presets", []() {
             mainParent->SetActive(false);
             presetsParent->SetActive(true);
-        });
+        }, "Modify conditional presets");
 
         auto spaced = BeatSaberUI::CreateGridLayoutGroup(mainVertical);
         spaced->set_constraint(UnityEngine::UI::GridLayoutGroup::Constraint::FixedRowCount);
@@ -335,9 +335,6 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         spaced->set_cellSize({30, 8});
         spaced->get_rectTransform()->set_sizeDelta({0, 12});
         spaced->set_spacing({0, -2});
-
-        // static ConstString textsHoverHint("The default for the level (green) and the applied (red) values. Click to set to the level default");
-        // BeatSaberUI::AddHoverHint(spaced, textsHoverHint);
 
         UnityEngine::Color labelColor(0.3, 0.7, 1, 1);
         CreateCenteredText(spaced, "Duration")->set_color(labelColor);
@@ -367,6 +364,9 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         SetText(njsText, 3, 16);
         njsText->get_onPointerEnterEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Highlight(njsText); });
         njsText->get_onPointerExitEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Unhighlight(njsText); });
+
+        for(int i = 0; i < spaced->get_transform()->GetChildCount(); i++)
+            BeatSaberUI::AddHoverHint(spaced->get_transform()->GetChild(i), "The default for the level (green) and the applied (red) values. Click to set to the level default");
 
         durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), 0.05, 0.1, 1.5, [](float value) {
             currentAppliedValues.SetMainValue(value);
@@ -414,7 +414,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         BeatSaberUI::AddHoverHint(levelSaveToggle, "Use and change settings specifically for the currently selected level instead of a preset");
         levelSaveToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(50);
 
-        levelStatusText = CreateCenteredText(horizontal1, hasLevelPreset ? "Override Exists" : "No Override Exists");
+        levelStatusText = CreateCenteredText(horizontal1, hasLevelPreset ? "Settings Exist" : "No Settings Exist");
         levelStatusText->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
         removeButton = CreateSmallButton(horizontal1, "X", []() {
             if(!currentBeatmap)
@@ -429,7 +429,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 UpdateMainUI();
             else
                 UpdateLevelSaveStatus();
-        }, "Remove Preset");
+        }, "Remove Override");
         removeButton->set_interactable(hasLevelPreset);
         ((UnityEngine::RectTransform*) removeButton->get_transform())->set_sizeDelta({8, 8});
 
@@ -461,13 +461,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 presetIncrement->CurrentValue--;
                 UpdatePresetControl();
             }
-        });
+        }, "Move preset up in priority");
         rightButton = CreateSmallButton(horizontal2, ">", []() {
             if(currentModifiedValues.ShiftForward()) {
                 presetIncrement->CurrentValue++;
                 UpdatePresetControl();
             }
-        });
+        }, "Move preset down in priority");
 
         int presetNum = getModConfig().Presets.GetValue().size();
         presetIncrement = BeatSaberUI::CreateIncrementSetting(gameObject, "", 0, 1, presetNum + 1, 1, presetNum + 1, [](float preset) {
@@ -494,7 +494,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             presetIncrement->UpdateValue();
             if(UpdatePreset())
                 UpdateMainUI();
-        });
+        }, "Delete current preset");
         CreateSmallButton(horizontal2, "+", []() {
             auto presets = getModConfig().Presets.GetValue();
             presets.emplace_back();
@@ -504,7 +504,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             presetIncrement->UpdateValue();
             if(UpdatePreset())
                 UpdateMainUI();
-        });
+        }, "Add new preset");
 
         auto spaced2 = BeatSaberUI::CreateGridLayoutGroup(presetsVertical);
         spaced2->set_constraint(UnityEngine::UI::GridLayoutGroup::Constraint::FixedColumnCount);
@@ -525,7 +525,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                     if(currentModifiedValues.GetConditionCount() < maxFittingConditions)
                         currentModifiedValues.SetCondition({}, maxFittingConditions);
                     UpdateConditions();
-                });
+                }, "Add new condition for the current preset");
                 CreateCenteredText(horizontal3, "On")->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(12);
             } else {
                 ReparentDropdown(CreateDropdownEnum(presetsVertical, "", currentModifiedValues.GetCondition(i).AndOr, options1, [i](int option) {
