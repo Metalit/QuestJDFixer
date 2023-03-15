@@ -187,8 +187,8 @@ inline void SetActive(T* component, bool active) {
 }
 
 inline void SetText(TMPro::TextMeshProUGUI* text, float main, float secondary) {
-    if(abs(main - secondary) < 0.005)
-        text->set_text(string_format("<#5ec462>%.1f", main));
+    if(abs(main - secondary) < 0.005 || secondary == 0)
+        text->set_text(string_format("<#5ec462>%.1f", secondary));
     else
         text->set_text(string_format("<#ff6969>%.1f <size=75%%><#5ec462>(%.1f)", main, secondary));
 }
@@ -317,17 +317,21 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         mainVertical->get_rectTransform()->set_anchoredPosition({0, 31});
 
         auto horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
-        horizontal->set_spacing(10);
+        horizontal->set_spacing(5);
 
-        auto enableToggle = AddConfigValueToggle(horizontal, getModConfig().Disable, [](bool _) {
-            UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
-        });
-        enableToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(50);
+        auto titleText = BeatSaberUI::CreateText(horizontal->get_transform(), "Main Settings");
+        titleText->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(15);
+        titleText->set_alignment(TMPro::TextAlignmentOptions::MidlineLeft);
 
         CreateSmallButton(horizontal, "Presets", []() {
             mainParent->SetActive(false);
             presetsParent->SetActive(true);
         }, "Modify conditional presets");
+
+        auto enableToggle = AddConfigValueToggle(horizontal, getModConfig().Disable, [](bool _) {
+            UpdateScoreSubmission(currentAppliedValues.GetOverrideNJS());
+        });
+        enableToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
 
         auto spaced = BeatSaberUI::CreateGridLayoutGroup(mainVertical);
         spaced->set_constraint(UnityEngine::UI::GridLayoutGroup::Constraint::FixedRowCount);
@@ -429,9 +433,15 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 UpdateMainUI();
             else
                 UpdateLevelSaveStatus();
-        }, "Remove Override");
+        }, "Remove specific settings for this level");
         removeButton->set_interactable(hasLevelPreset);
         ((UnityEngine::RectTransform*) removeButton->get_transform())->set_sizeDelta({8, 8});
+
+        auto horizontal2 = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
+        horizontal2->set_spacing(6);
+
+        AddConfigValueToggle(horizontal2, getModConfig().Practice)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
+        AddConfigValueToggle(horizontal2, getModConfig().Half)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
 
         auto presetsVertical = BeatSaberUI::CreateVerticalLayoutGroup(gameObject);
         presetsVertical->set_childControlHeight(false);
@@ -444,25 +454,25 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         // raise up container
         presetsVertical->get_rectTransform()->set_anchoredPosition({0, 31});
 
-        auto horizontal2 = BeatSaberUI::CreateHorizontalLayoutGroup(presetsVertical);
-        horizontal2->set_spacing(1);
+        auto horizontal3 = BeatSaberUI::CreateHorizontalLayoutGroup(presetsVertical);
+        horizontal3->set_spacing(1);
 
-        CreateSmallButton(horizontal2, "Back", []() {
+        CreateSmallButton(horizontal3, "Back", []() {
             mainParent->SetActive(true);
             presetsParent->SetActive(false);
         });
 
-        auto presetLabel = BeatSaberUI::CreateText(horizontal2->get_transform(), "Presets");
+        auto presetLabel = BeatSaberUI::CreateText(horizontal3->get_transform(), "Presets");
         presetLabel->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(20);
         presetLabel->set_alignment(TMPro::TextAlignmentOptions::MidlineLeft);
 
-        leftButton = CreateSmallButton(horizontal2, "<", []() {
+        leftButton = CreateSmallButton(horizontal3, "<", []() {
             if(currentModifiedValues.ShiftBackward()) {
                 presetIncrement->CurrentValue--;
                 UpdatePresetControl();
             }
         }, "Move preset up in priority");
-        rightButton = CreateSmallButton(horizontal2, ">", []() {
+        rightButton = CreateSmallButton(horizontal3, ">", []() {
             if(currentModifiedValues.ShiftForward()) {
                 presetIncrement->CurrentValue++;
                 UpdatePresetControl();
@@ -480,10 +490,10 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         });
         SetButtons(presetIncrement);
         auto incrementObject = presetIncrement->get_transform()->GetChild(1);
-        incrementObject->SetParent(horizontal2->get_transform());
+        incrementObject->SetParent(horizontal3->get_transform());
         incrementObject->get_gameObject()->AddComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
 
-        minusButton = CreateSmallButton(horizontal2, "-", []() {
+        minusButton = CreateSmallButton(horizontal3, "-", []() {
             int idx = currentModifiedValues.GetConditionPresetIndex();
             if(idx == -1)
                 return;
@@ -495,7 +505,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
             if(UpdatePreset())
                 UpdateMainUI();
         }, "Delete current preset");
-        CreateSmallButton(horizontal2, "+", []() {
+        CreateSmallButton(horizontal3, "+", []() {
             auto presets = getModConfig().Presets.GetValue();
             presets.emplace_back();
             getModConfig().Presets.SetValue(presets);
@@ -519,14 +529,14 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         std::vector<std::string> options3 = {"Under", "Over"};
         for(int i = 0; i < maxFittingConditions; i++) {
             if(i == 0) {
-                auto horizontal3 = BeatSaberUI::CreateHorizontalLayoutGroup(spaced2);
-                horizontal3->set_childControlWidth(true);
-                CreateSmallButton(horizontal3, "+", []() {
+                auto horizontal4 = BeatSaberUI::CreateHorizontalLayoutGroup(spaced2);
+                horizontal4->set_childControlWidth(true);
+                CreateSmallButton(horizontal4, "+", []() {
                     if(currentModifiedValues.GetConditionCount() < maxFittingConditions)
                         currentModifiedValues.SetCondition({}, maxFittingConditions);
                     UpdateConditions();
                 }, "Add new condition for the current preset");
-                CreateCenteredText(horizontal3, "On")->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(12);
+                CreateCenteredText(horizontal4, "On")->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(12);
             } else {
                 ReparentDropdown(CreateDropdownEnum(presetsVertical, "", currentModifiedValues.GetCondition(i).AndOr, options1, [i](int option) {
                     if(option != 2) {
@@ -594,20 +604,20 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         boundsParent = UnityEngine::GameObject::New_ctor("JDFixerBoundsParent");
         boundsParent->AddComponent<UnityEngine::RectTransform*>()->set_sizeDelta({90, 8});
         boundsParent->get_transform()->SetParent(presetsVertical->get_transform(), false);
-        auto horizontal4 = BeatSaberUI::CreateHorizontalLayoutGroup(boundsParent);
-        horizontal4->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredHeight(8);
-        horizontal4->set_childControlWidth(false);
-        horizontal4->get_rectTransform()->set_anchoredPosition({4, 0});
+        auto horizontal5 = BeatSaberUI::CreateHorizontalLayoutGroup(boundsParent);
+        horizontal5->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredHeight(8);
+        horizontal5->set_childControlWidth(false);
+        horizontal5->get_rectTransform()->set_anchoredPosition({4, 0});
 
         minBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 0, 30, [](float value) {
             currentModifiedValues.SetBoundMin(value);
             UpdateTexts();
-        }, 34), horizontal4);
-        CreateCenteredText(horizontal4, "to");
+        }, 34), horizontal5);
+        CreateCenteredText(horizontal5, "to");
         maxBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Max", currentModifiedValues.GetBoundMax(), 0.1, 1, 30, [](float value) {
             currentModifiedValues.SetBoundMax(value);
             UpdateTexts();
-        }, 34), horizontal4);
+        }, 34), horizontal5);
 
         UpdateMainUI();
         UpdatePresetUI();

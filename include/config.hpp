@@ -39,6 +39,8 @@ DECLARE_JSON_CLASS(ConditionPreset,
 
 DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(Disable, bool, "Disable Mod", false, "Whether to disable the mod entirely, allowing the base game settings to take effect");
+    CONFIG_VALUE(Practice, bool, "Fix Practice NJS", true, "Makes practice mode NJS be unchanged by the speed modifier");
+    CONFIG_VALUE(Half, bool, "Half Values", true, "Whether to use half values for distance and duration, which correspond to the real note movements but may be less familiar");
 
     CONFIG_VALUE(Duration, float, "Jump Duration", 0.5, "The jump duration to set the level to");
     CONFIG_VALUE(UseDuration, bool, "Slider Controls", true, "Whether the main slider controls distance or duration");

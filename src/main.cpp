@@ -46,13 +46,20 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         if(values.OverrideNJS)
             startNoteJumpMovementSpeed = values.NJS;
 
-        self->moveSpeed /= practiceSpeed;
-        startNoteJumpMovementSpeed /= practiceSpeed;
-
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = values.MainValue;
         if(!values.UseDuration)
             noteJumpValue /= startNoteJumpMovementSpeed;
+
+        if(!getModConfig().Half.GetValue())
+            noteJumpValue *= 0.5;
+
+        if(getModConfig().Practice.GetValue()) {
+            self->moveSpeed /= practiceSpeed;
+            startNoteJumpMovementSpeed /= practiceSpeed;
+            noteJumpValue *= practiceSpeed;
+        } else if(values.UseDuration)
+            noteJumpValue *= practiceSpeed; // idek
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
