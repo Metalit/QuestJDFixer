@@ -5,9 +5,16 @@
 
 #include "GlobalNamespace/IBeatmapLevel.hpp"
 #include "HMUI/AnimatedSwitchView.hpp"
+#include "HMUI/EventSystemListener.hpp"
+#include "HMUI/HoverHintController.hpp"
 #include "UnityEngine/UI/LayoutRebuilder.hpp"
 #include "UnityEngine/Rect.hpp"
 #include "UnityEngine/RectTransform_Axis.hpp"
+#include "UnityEngine/WaitForSeconds.hpp"
+#include "System/Action_1.hpp"
+
+#include "custom-types/shared/delegate.hpp"
+#include "custom-types/shared/coroutine.hpp"
 
 #include <iomanip>
 
@@ -89,12 +96,12 @@ SliderSetting* ReparentSlider(SliderSetting* slider, P parent) {
 }
 
 void SetSliderBounds(SliderSetting* slider, float min, float max, float increment) {
-    slider->isInt = abs(increment - round(increment)) < 0.000001;
     float value = slider->get_value();
-    slider->slider->set_minValue(min);
-    slider->slider->set_maxValue(max);
-    slider->slider->set_numberOfSteps(((max - min) / increment) + 1);
-    slider->set_value(value);
+    slider->isInt = abs(increment - round(increment)) < 0.000001;
+    slider->slider->minValue = min;
+    slider->slider->maxValue = max;
+    slider->slider->numberOfSteps = ((max - min) / increment) + 1;
+    slider->slider->SetNormalizedValue(slider->slider->NormalizeValue(value));
     slider->text->set_text(slider->TextForValue(slider->get_value()));
 }
 
@@ -190,6 +197,12 @@ inline void InstantSetToggle(UnityEngine::UI::Toggle* toggle, bool value) {
 template<class T>
 inline void SetActive(T* component, bool active) {
     component->get_gameObject()->SetActive(active);
+}
+
+custom_types::Helpers::Coroutine HideHintsCoro() {
+    co_yield (System::Collections::IEnumerator*) UnityEngine::WaitForSeconds::New_ctor(0.3);
+    UnityEngine::Object::FindObjectOfType<HMUI::HoverHintController*>()->HideHintInstant();
+    co_return;
 }
 
 inline std::string FormatDecimals(float value, int decimals) {
@@ -371,6 +384,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         CreateCenteredText(spaced, "NJS")->set_color(labelColor);
 
         durationText = CreateCenteredText(spaced, "", []() {
+            if(!currentBeatmap)
+                return;
             currentAppliedValues.SetDuration(currentLevelValues.halfJumpDuration);
             UpdateMainUI();
         });
@@ -379,6 +394,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         durationText->get_onPointerExitEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Unhighlight(durationText); });
 
         distanceText = CreateCenteredText(spaced, "", []() {
+            if(!currentBeatmap)
+                return;
             currentAppliedValues.SetDistance(currentLevelValues.halfJumpDistance);
             UpdateMainUI();
         });
@@ -387,6 +404,8 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         distanceText->get_onPointerExitEvent().addCallback(*[](UnityEngine::EventSystems::PointerEventData* _) { Unhighlight(distanceText); });
 
         njsText = CreateCenteredText(spaced, "", []() {
+            if(!currentBeatmap)
+                return;
             currentAppliedValues.SetNJS(currentLevelValues.njs);
             UpdateMainUI();
         });
@@ -401,11 +420,15 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         float decimalIncrement = 1.0 / pow(10, getModConfig().Decimals.GetValue());
 
         durationSlider = CreateIncrementSlider(mainVertical, "Half Jump Duration", currentAppliedValues.GetMainValue(), decimalIncrement, 0.1, 1.5, [](float value) {
+            if(!currentAppliedValues.GetUseDuration())
+                return;
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
         }, 50);
         durationSlider->FormatString = decimalFormat;
         distanceSlider = CreateIncrementSlider(mainVertical, "Half Jump Distance", currentAppliedValues.GetMainValue(), decimalIncrement, 1, 30, [](float value) {
+            if(currentAppliedValues.GetUseDuration())
+                return;
             currentAppliedValues.SetMainValue(value);
             UpdateTexts();
         }, 50);
@@ -426,6 +449,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         });
         njsSlider = ReparentSlider(njsSlider, njsToggle);
         ((UnityEngine::RectTransform*) njsSlider->slider->get_transform())->set_anchoredPosition({-25, 0});
+        njsSlider->FormatString = decimalFormat;
+        auto listener = njsSlider->get_gameObject()->AddComponent<HMUI::EventSystemListener*>();
+        listener->add_pointerDidEnterEvent(custom_types::MakeDelegate<System::Action_1<UnityEngine::EventSystems::PointerEventData*>*>(
+            (std::function<void(UnityEngine::EventSystems::PointerEventData*)>) [](UnityEngine::EventSystems::PointerEventData* _) {
+                njsSlider->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(HideHintsCoro()));
+            }
+        ));
 
         auto horizontal1 = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
         horizontal1->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
@@ -601,7 +631,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 if(UpdatePreset())
                     UpdateMainUI();
             }, 22), spaced2);
-            auto slider = BeatSaberUI::CreateSliderSetting(presetsVertical, "", 1, currentModifiedValues.GetCondition(i).Value, 0, 1000, 0, [i](float value) {
+            auto slider = BeatSaberUI::CreateSliderSetting(presetsVertical, "", 0.1, currentModifiedValues.GetCondition(i).Value, 0, 1000, 0, [i](float value) {
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Value = value;
                 currentModifiedValues.SetCondition(cond, i);
