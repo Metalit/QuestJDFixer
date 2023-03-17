@@ -183,6 +183,13 @@ inline UnityEngine::UI::Toggle* AddConfigValueToggle(P parent, ConfigUtils::Conf
     return object;
 }
 
+inline void SetSliderName(SliderSetting* slider, std::string const& name) {
+    static ConstString nameTextName("NameText");
+    auto text = slider->get_transform()->Find(nameTextName);
+    if(text)
+        text->GetComponent<TMPro::TextMeshProUGUI*>()->set_text(name);
+}
+
 inline void InstantSetToggle(UnityEngine::UI::Toggle* toggle, bool value) {
     if(toggle->m_IsOn == value)
         return;
@@ -242,8 +249,8 @@ void Unhighlight(TMPro::TextMeshProUGUI* text) {
 }
 
 void UpdateTexts() {
-    SetText(durationText, currentAppliedValues.GetDuration(), currentLevelValues.halfJumpDuration);
-    SetText(distanceText, currentAppliedValues.GetDistance(), currentLevelValues.halfJumpDistance);
+    SetText(durationText, currentAppliedValues.GetDuration(), currentLevelValues.GetJumpDuration());
+    SetText(distanceText, currentAppliedValues.GetDistance(), currentLevelValues.GetJumpDistance());
     SetText(njsText, currentAppliedValues.GetNJS(), currentLevelValues.njs);
 }
 
@@ -265,6 +272,8 @@ void UpdateMainUI() {
     UpdateTexts();
     SetActive(durationSlider, currentAppliedValues.GetUseDuration());
     SetActive(distanceSlider, !currentAppliedValues.GetUseDuration());
+    SetSliderName(durationSlider, getModConfig().Half.GetValue() ? "Half Jump Duration" : "Jump Duration");
+    SetSliderName(distanceSlider, getModConfig().Half.GetValue() ? "Half Jump Distance" : "Jump Distance");
     if(currentAppliedValues.GetUseDuration())
         durationSlider->set_value(currentAppliedValues.GetMainValue());
     else
@@ -386,7 +395,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         durationText = CreateCenteredText(spaced, "", []() {
             if(!currentBeatmap)
                 return;
-            currentAppliedValues.SetDuration(currentLevelValues.halfJumpDuration);
+            currentAppliedValues.SetDuration(currentLevelValues.GetJumpDuration());
             UpdateMainUI();
         });
         SetText(durationText, 0, 0);
@@ -396,7 +405,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         distanceText = CreateCenteredText(spaced, "", []() {
             if(!currentBeatmap)
                 return;
-            currentAppliedValues.SetDistance(currentLevelValues.halfJumpDistance);
+            currentAppliedValues.SetDistance(currentLevelValues.GetJumpDistance());
             UpdateMainUI();
         });
         SetText(distanceText, 0, 0);
@@ -500,8 +509,12 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         auto horizontal2 = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
         horizontal2->set_spacing(6);
 
-        AddConfigValueToggle(horizontal2, getModConfig().Practice)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
-        AddConfigValueToggle(horizontal2, getModConfig().Half)->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
+        auto practiceToggle = AddConfigValueToggle(horizontal2, getModConfig().Practice);
+        practiceToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
+        auto halfToggle = AddConfigValueToggle(horizontal2, getModConfig().Half, [](bool _) {
+            UpdateMainUI();
+        });
+        halfToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(42);
         auto decimalIncrementSetting = AddConfigValueIncrementInt(mainVertical, getModConfig().Decimals, 1, 1, 3);
         decimalIncrementSetting->OnValueChange = [oldCallback = std::move(decimalIncrementSetting->OnValueChange)](float value) {
             oldCallback(value);

@@ -101,9 +101,9 @@ float GetBPM(IDifficultyBeatmap* beatmap) {
 float GetValue(Values& values, int id) {
     switch(id) {
     case 1:
-        return values.halfJumpDuration;
+        return values.GetJumpDuration();
     case 2:
-        return values.halfJumpDistance;
+        return values.GetJumpDistance();
     case 3:
         return values.njs;
     default:
@@ -363,9 +363,9 @@ void Preset::UpdateLevel(Values const& levelValues) {
     if(!GetUseDefaults())
         return;
     if(GetUseDuration())
-        SetMainValue(levelValues.halfJumpDuration);
+        SetMainValue(levelValues.GetJumpDuration());
     else
-        SetMainValue(levelValues.halfJumpDistance);
+        SetMainValue(levelValues.GetJumpDistance());
     SetNJS(levelNJS);
 }
 
@@ -383,9 +383,9 @@ Preset::Preset(int conditionIdx, Values const& levelValues) {
     levelNJS = levelValues.njs;
     if(internalCondition.SetToDefaults) {
         if(internalCondition.UseDuration)
-            internalCondition.Duration = levelValues.halfJumpDuration;
+            internalCondition.Duration = levelValues.GetJumpDuration();
         else
-            internalCondition.Distance = levelValues.halfJumpDistance;
+            internalCondition.Distance = levelValues.GetJumpDistance();
         internalCondition.NJS = levelValues.njs;
         UpdateCondition();
     }
@@ -396,9 +396,9 @@ Preset::Preset(Values const& levelValues) {
     levelNJS = levelValues.njs;
     if(getModConfig().AutoDef.GetValue()) {
         if(getModConfig().UseDuration.GetValue())
-            getModConfig().Duration.SetValue(levelValues.halfJumpDuration);
+            getModConfig().Duration.SetValue(levelValues.GetJumpDuration());
         else
-            getModConfig().Distance.SetValue(levelValues.halfJumpDistance);
+            getModConfig().Distance.SetValue(levelValues.GetJumpDistance());
         getModConfig().NJS.SetValue(levelValues.njs);
     }
 }

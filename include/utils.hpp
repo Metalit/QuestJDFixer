@@ -11,6 +11,12 @@ struct Values {
     float halfJumpDuration;
     float halfJumpDistance;
     float njs;
+    float GetJumpDuration() const {
+        return halfJumpDuration * (getModConfig().Half.GetValue() ? 1 : 2);
+    }
+    float GetJumpDistance() const {
+        return halfJumpDistance * (getModConfig().Half.GetValue() ? 1 : 2);
+    }
 };
 
 Values GetLevelDefaults(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
