@@ -361,7 +361,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         mainParent = mainVertical->get_gameObject();
 
         // raise up container
-        mainVertical->get_rectTransform()->set_anchoredPosition({0, 31});
+        mainVertical->get_rectTransform()->set_anchoredPosition({0, 33});
 
         auto horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(mainVertical);
         horizontal->set_spacing(5);
@@ -531,7 +531,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         presetsParent = presetsVertical->get_gameObject();
 
         // raise up container
-        presetsVertical->get_rectTransform()->set_anchoredPosition({0, 31});
+        presetsVertical->get_rectTransform()->set_anchoredPosition({0, 33});
 
         auto horizontal3 = BeatSaberUI::CreateHorizontalLayoutGroup(presetsVertical);
         horizontal3->set_spacing(1);
