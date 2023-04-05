@@ -373,6 +373,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         CreateSmallButton(horizontal, "Presets", []() {
             mainParent->SetActive(false);
             presetsParent->SetActive(true);
+            currentModifiedValues.SyncCondition();
         }, "Modify conditional presets");
 
         auto enableToggle = AddConfigValueToggle(horizontal, getModConfig().Disable, [](bool _) {
@@ -546,12 +547,18 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 
         leftButton = CreateSmallButton(horizontal3, "<", []() {
             if(currentModifiedValues.ShiftBackward()) {
+                if(lastPreset.which == 1 && lastPreset.idx != -1)
+                    lastPreset.idx--;
+                currentAppliedValues.SyncCondition(-1);
                 presetIncrement->CurrentValue--;
                 UpdatePresetControl();
             }
         }, "Move preset up in priority");
         rightButton = CreateSmallButton(horizontal3, ">", []() {
             if(currentModifiedValues.ShiftForward()) {
+                if(lastPreset.which == 1 && lastPreset.idx != -1)
+                    lastPreset.idx++;
+                currentAppliedValues.SyncCondition(1);
                 presetIncrement->CurrentValue++;
                 UpdatePresetControl();
             }
@@ -561,9 +568,9 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         presetIncrement = BeatSaberUI::CreateIncrementSetting(gameObject, "", 0, 1, presetNum + 1, 1, presetNum + 1, [](float preset) {
             preset--; // goes 1, 2, 3... as displayed and the last is the main config
             if(preset == getModConfig().Presets.GetValue().size())
-                currentModifiedValues = Preset(currentLevelValues);
+                currentModifiedValues = Preset(currentLevelValues, false);
             else
-                currentModifiedValues = Preset(preset, currentLevelValues);
+                currentModifiedValues = Preset(preset, currentLevelValues, false);
             UpdatePresetUI();
         });
         SetButtons(presetIncrement);
@@ -623,9 +630,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                         currentModifiedValues.SetCondition(cond, i);
                         if(UpdatePreset())
                             UpdateMainUI();
+                        else
+                            currentAppliedValues.SyncCondition();
                     } else {
                         currentModifiedValues.RemoveCondition(i);
                         UpdateConditions();
+                        if(UpdatePreset())
+                            UpdateMainUI();
                     }
                 }, 22), spaced2);
             }
@@ -633,6 +644,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Type = option;
                 currentModifiedValues.SetCondition(cond, i);
+                currentAppliedValues.SyncCondition();
                 UpdateConditions();
                 if(UpdatePreset())
                     UpdateMainUI();
@@ -641,6 +653,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Comparison = option;
                 currentModifiedValues.SetCondition(cond, i);
+                currentAppliedValues.SyncCondition();
                 if(UpdatePreset())
                     UpdateMainUI();
             }, 22), spaced2);
@@ -648,6 +661,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
                 auto cond = currentModifiedValues.GetCondition(i);
                 cond.Value = value;
                 currentModifiedValues.SetCondition(cond, i);
+                currentAppliedValues.SyncCondition();
                 if(UpdatePreset())
                     UpdateMainUI();
             });
@@ -661,6 +675,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 
         useDefaultsToggle = CreateNonSettingToggle(presetsVertical, getModConfig().AutoDef, currentModifiedValues.GetUseDefaults(), [](bool enabled) {
             currentModifiedValues.SetUseDefaults(enabled);
+            currentAppliedValues.SyncCondition();
             if(!currentBeatmap)
                 return;
             currentAppliedValues.UpdateLevel(currentLevelValues);
@@ -670,11 +685,13 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         std::vector<std::string> mainValueOptions = {"Distance", "Duration"};
         durDistDropdown = CreateNonSettingDropdownEnum(presetsVertical, getModConfig().UseDuration, currentModifiedValues.GetUseDuration(), mainValueOptions, [](int option) {
             currentModifiedValues.SetUseDuration(option);
+            currentAppliedValues.SyncCondition();
             UpdateMainUI();
         });
 
         useBoundsToggle = CreateNonSettingToggle(presetsVertical, getModConfig().BoundJD, currentModifiedValues.GetUseBounds(), [](bool enabled) {
             currentModifiedValues.SetUseBounds(enabled);
+            currentAppliedValues.SyncCondition();
             boundsParent->SetActive(enabled);
             UpdateTexts();
         });
@@ -689,12 +706,14 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 
         minBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Min", currentModifiedValues.GetBoundMin(), 0.1, 0, 30, [](float value) {
             currentModifiedValues.SetBoundMin(value);
+            currentAppliedValues.SyncCondition();
             UpdateTexts();
         }, 34), horizontal5);
         minBoundSlider->FormatString = [](float value) { return FormatDecimals(value, 1); };
         CreateCenteredText(horizontal5, "to");
         maxBoundSlider = ReparentSlider(CreateIncrementSlider(presetsVertical, "Max", currentModifiedValues.GetBoundMax(), 0.1, 1, 30, [](float value) {
             currentModifiedValues.SetBoundMax(value);
+            currentAppliedValues.SyncCondition();
             UpdateTexts();
         }, 34), horizontal5);
         maxBoundSlider->FormatString = [](float value) { return FormatDecimals(value, 1); };

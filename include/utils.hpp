@@ -60,6 +60,7 @@ class Preset {
     void RemoveCondition(int idx);
     int GetConditionCount();
     int GetConditionPresetIndex();
+    void SyncCondition(int idxChange = 0);
     bool ShiftForward();
     bool ShiftBackward();
     LevelPreset GetAsLevelPreset();
@@ -67,8 +68,8 @@ class Preset {
     void UpdateLevel(Values const& levelValues);
 
     Preset(std::string levelID, Values const& levelValues);
-    Preset(int conditionIdx, Values const& levelValues);
-    Preset(Values const& levelValues);
+    Preset(int conditionIdx, Values const& levelValues, bool setToLevel = true);
+    Preset(Values const& levelValues, bool setToLevel = true);
     Preset() = default;
 };
 #undef PROP

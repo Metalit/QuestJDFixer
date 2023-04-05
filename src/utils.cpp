@@ -319,6 +319,13 @@ int Preset::GetConditionPresetIndex() {
     return -1;
 }
 
+void Preset::SyncCondition(int idxChange) {
+    if(type != Type::Condition)
+        return;
+    internalIdx += idxChange;
+    internalCondition = getModConfig().Presets.GetValue()[internalIdx];
+}
+
 bool Preset::ShiftForward() {
     if(type != Type::Condition)
         return false;
@@ -376,12 +383,12 @@ Preset::Preset(std::string levelID, Values const& levelValues) {
     levelNJS = levelValues.njs;
 }
 
-Preset::Preset(int conditionIdx, Values const& levelValues) {
+Preset::Preset(int conditionIdx, Values const& levelValues, bool setToLevel) {
     type = Type::Condition;
     internalCondition = getModConfig().Presets.GetValue()[conditionIdx];
     internalIdx = conditionIdx;
     levelNJS = levelValues.njs;
-    if(internalCondition.SetToDefaults) {
+    if(internalCondition.SetToDefaults && setToLevel) {
         if(internalCondition.UseDuration)
             internalCondition.Duration = levelValues.GetJumpDuration();
         else
@@ -391,10 +398,10 @@ Preset::Preset(int conditionIdx, Values const& levelValues) {
     }
 }
 
-Preset::Preset(Values const& levelValues) {
+Preset::Preset(Values const& levelValues, bool setToLevel) {
     type = Type::Main;
     levelNJS = levelValues.njs;
-    if(getModConfig().AutoDef.GetValue()) {
+    if(getModConfig().AutoDef.GetValue() && setToLevel) {
         if(getModConfig().UseDuration.GetValue())
             getModConfig().Duration.SetValue(levelValues.GetJumpDuration());
         else
