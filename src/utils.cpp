@@ -75,11 +75,11 @@ Values GetLevelDefaults(IDifficultyBeatmap* beatmap, float speed) {
     float njs = beatmap->get_noteJumpMovementSpeed();
     if(njs <= 0)
         njs = GetDefaultDifficultyNJS(beatmap->get_difficulty());
-    njs *= speed;
 
     float offset = beatmap->get_noteJumpStartBeatOffset();
 
     float halfJumpDuration = GetDefaultHalfJumpDuration(njs, 60 / bpm, offset);
+    njs *= speed;
     float halfJumpDistance = halfJumpDuration * njs;
 
     return Values{

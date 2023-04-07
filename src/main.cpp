@@ -48,8 +48,12 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = values.MainValue;
+
+        float actualNjs = startNoteJumpMovementSpeed;
+        if(practiceSpeed == 1)
+            actualNjs = startNoteJumpMovementSpeed * modifierSpeed;
         if(!values.UseDuration)
-            noteJumpValue /= startNoteJumpMovementSpeed;
+            noteJumpValue /= actualNjs;
 
         if(!getModConfig().Half.GetValue())
             noteJumpValue *= 0.5;
