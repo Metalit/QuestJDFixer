@@ -355,7 +355,7 @@ LevelPreset Preset::GetAsLevelPreset() {
         return internalLevel;
     LevelPreset ret;
     ret.UseDuration = GetUseDuration();
-    ret.MainValue = GetMainValue();
+    ret.MainValue = Bound(GetMainValue());
     ret.OverrideNJS = GetOverrideNJS();
     ret.NJS = GetNJS();
     return ret;
