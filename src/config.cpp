@@ -27,11 +27,7 @@ float lastSpeed = 0;
 float currentNps = 0;
 
 Preset currentAppliedValues;
-struct Indicator {
-    std::string id = "";
-    int idx = -1;
-    bool which = 1;
-}; Indicator lastPreset;
+Indicator lastPreset;
 bool hasLevelPreset;
 
 Preset currentModifiedValues;
@@ -473,15 +469,14 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         horizontal1->set_spacing(1);
 
         bool presetActive = currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active;
-        levelSaveToggle = BeatSaberUI::CreateToggle(horizontal1, "Level Specifc Settings", presetActive, [](bool enabled) {
+        levelSaveToggle = BeatSaberUI::CreateToggle(horizontal1, "Level Specific Settings", presetActive, [](bool enabled) {
             if(!currentBeatmap)
                 return;
-            auto levels = getModConfig().Levels.GetValue();
-            std::string search = currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
-            if(levels.count(search) == 0)
-                levels[search] = currentAppliedValues.GetAsLevelPreset();
-            levels[search].Active = enabled;
-            getModConfig().Levels.SetValue(levels);
+            auto currentLevelPreset = currentAppliedValues.GetAsLevelPreset();
+            if(auto preexisting = GetLevelPreset(currentBeatmap))
+                currentLevelPreset = preexisting->second;
+            currentLevelPreset.Active = enabled;
+            SetLevelPreset(currentBeatmap, currentLevelPreset);
             if(UpdatePreset())
                 UpdateMainUI();
         });
@@ -493,12 +488,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         removeButton = CreateSmallButton(horizontal1, "X", []() {
             if(!currentBeatmap)
                 return;
-            auto levels = getModConfig().Levels.GetValue();
-            auto iter = levels.find(currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID());
-            if(iter == levels.end())
-                return;
-            levels.erase(iter);
-            getModConfig().Levels.SetValue(levels);
+            RemoveLevelPreset(currentBeatmap);
             if(UpdatePreset())
                 UpdateMainUI();
             else
@@ -731,16 +721,15 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
 bool UpdatePreset() {
     if(!currentBeatmap)
         return false;
-    std::string search = currentBeatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
-    auto map = getModConfig().Levels.GetValue();
-    auto iter = map.find(search);
-    if(iter != map.end()) {
+    if(auto levelPreset = GetLevelPreset(currentBeatmap)) {
         hasLevelPreset = true;
-        if(iter->second.Active) {
+        auto& [indicator, preset] = *levelPreset;
+        if(preset.Active) {
             // only reset when preset changes
-            if(lastPreset.which != 0 || lastPreset.id != search) {
-                currentAppliedValues = Preset(search, currentLevelValues);
-                lastPreset.id = search;
+            if(lastPreset.which != 0 || lastPreset.id != indicator.id || lastPreset.map != indicator.map) {
+                currentAppliedValues = Preset(indicator.id, indicator.map, currentLevelValues);
+                lastPreset.id = indicator.id;
+                lastPreset.map = indicator.map;
                 lastPreset.which = 0;
                 return true;
             }

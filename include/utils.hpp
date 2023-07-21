@@ -7,6 +7,10 @@
 
 float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
 
+std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap);
+void SetLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap, LevelPreset value);
+void RemoveLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap);
+
 struct Values {
     float halfJumpDuration;
     float halfJumpDistance;
@@ -39,6 +43,7 @@ class Preset {
     LevelPreset internalLevel;
     ConditionPreset internalCondition;
     std::string internalLevelID;
+    std::string internalMapID;
     void UpdateLevelPreset();
     int internalIdx;
     void UpdateCondition();
@@ -67,7 +72,7 @@ class Preset {
     bool GetIsLevelPreset();
     void UpdateLevel(Values const& levelValues);
 
-    Preset(std::string levelID, Values const& levelValues);
+    Preset(std::string levelID, std::string mapID, Values const& levelValues);
     Preset(int conditionIdx, Values const& levelValues, bool setToLevel = true);
     Preset(Values const& levelValues, bool setToLevel = true);
     Preset() = default;

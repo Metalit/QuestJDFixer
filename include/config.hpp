@@ -4,6 +4,13 @@
 
 #include "GlobalNamespace/IDifficultyBeatmap.hpp"
 
+struct Indicator {
+    std::string id = "";
+    std::string map = "";
+    int idx = -1;
+    bool which = 1;
+};
+
 DECLARE_JSON_CLASS(Condition,
     VALUE(int, AndOr)
     // 0: nps, 1: njs, 2: bpm
@@ -27,7 +34,7 @@ DECLARE_JSON_CLASS(ConditionPreset,
     VALUE_DEFAULT(float, Duration, 0.5)
     VALUE_DEFAULT(float, Distance, 10)
     VALUE_DEFAULT(bool, UseDuration, true)
-    VECTOR_DEFAULT(Condition, Conditions, std::vector<Condition>{{}})
+    VECTOR_DEFAULT(Condition, Conditions, {{}})
     VALUE(bool, SetToDefaults)
     VALUE(bool, DistanceBounds)
     VALUE(float, DistanceMin)
@@ -53,8 +60,13 @@ DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(UseNJS, bool, "Override NJS", false, "Overrides the note jump speed (disables score submission)");
 
     CONFIG_VALUE(NJS, float, "Note Jump Speed", 18.0, "The note jump speed to set the level to");
-    CONFIG_VALUE(Presets, std::vector<ConditionPreset>, "Presets", std::vector<ConditionPreset>{});
-    CONFIG_VALUE(Levels, StringKeyedMap<LevelPreset>, "Level Presets", StringKeyedMap<LevelPreset>{});
+    CONFIG_VALUE(Presets, std::vector<ConditionPreset>, "Presets", {});
+
+    // map from characteristic ser. name + difficulty "Standard2" to preset
+    // since I forgot to specify difficulty and characteristic originally, no map applies to all
+    // it's converted when loaded though to avoid conflicts
+    using LevelPresetOptions = TypeOptions<LevelPreset, StringKeyedMap<LevelPreset>>;
+    CONFIG_VALUE(Levels, StringKeyedMap<LevelPresetOptions>, "Level Presets", {});
 )
 
 void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);

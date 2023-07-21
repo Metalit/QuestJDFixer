@@ -4,6 +4,9 @@
 #include "bs-utils/shared/utils.hpp"
 
 #include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
+#include "GlobalNamespace/IBeatmapLevelData.hpp"
+#include "GlobalNamespace/IDifficultyBeatmapSet.hpp"
+#include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
 #include "GlobalNamespace/CustomDifficultyBeatmap.hpp"
 #include "GlobalNamespace/IBeatmapDataBasicInfo.hpp"
 #include "GlobalNamespace/BeatmapLevelSO_DifficultyBeatmap.hpp"
@@ -47,6 +50,108 @@ float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatO
 	}
     // turn back into duration in seconds, instead of in beats
 	return halfJumpDuration * beatDuration;
+}
+
+std::vector<std::pair<std::string, std::vector<int>>> GetAllBeatmaps(IDifficultyBeatmap* beatmap) {
+    std::vector<std::pair<std::string, std::vector<int>>> ret;
+
+    ArrayW<IDifficultyBeatmapSet*> sets(beatmap->get_level()->get_beatmapLevelData()->get_difficultyBeatmapSets());
+    for(auto& set : sets) {
+        std::string name = set->get_beatmapCharacteristic()->serializedName;
+
+        ArrayW<IDifficultyBeatmap*> maps(set->get_difficultyBeatmaps());
+        std::vector<int> diffs;
+        for(auto& map : maps)
+            diffs.emplace_back((int) map->get_difficulty());
+
+        ret.emplace_back(name, diffs);
+    }
+    return ret;
+}
+
+void MigrateLevelPresets(IDifficultyBeatmap* beatmap) {
+    std::string id = beatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
+    auto map = getModConfig().Levels.GetValue();
+    auto iter = map.find(id);
+    if(iter == map.end())
+        return;
+    // saved without difficulty/characteristic info, needs to be duplicated to all
+    if(auto value = iter->second.GetValue<LevelPreset>()) {
+        getLogger().debug("Duplicating unspecified level preset to all difficulties");
+        StringKeyedMap<LevelPreset> newValue;
+        auto allEntries = GetAllBeatmaps(beatmap);
+        for(auto& [charName, diffs] : allEntries) {
+            for(auto& diff : diffs)
+                newValue[charName + std::to_string(diff)] = *value;
+        }
+        iter->second.SetValue(newValue);
+        getModConfig().Levels.SetValue(map);
+    }
+}
+
+std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(IDifficultyBeatmap* beatmap) {
+    MigrateLevelPresets(beatmap);
+    std::string id = beatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
+    auto map = getModConfig().Levels.GetValue();
+    auto iter = map.find(id);
+    if(iter == map.end())
+        return std::nullopt;
+    // guaranteed to be a map after migrate
+    auto charDiffs = *iter->second.GetValue<StringKeyedMap<LevelPreset>>();
+    // search: characteristic ser. name + difficulty "Standard2" to preset
+    std::string charDiff = beatmap->get_parentDifficultyBeatmapSet()->get_beatmapCharacteristic()->serializedName;
+    charDiff += std::to_string((int) beatmap->get_difficulty());
+    auto iter2 = charDiffs.find(charDiff);
+    if(iter2 == charDiffs.end())
+        return std::nullopt;
+    Indicator ret = {
+        .id = id,
+        .map = charDiff,
+    };
+    return std::make_pair(ret, iter2->second);
+}
+
+void SetLevelPreset(std::string levelID, std::string mapID, LevelPreset value) {
+    auto map = getModConfig().Levels.GetValue();
+    auto iter = map.find(levelID);
+    if(iter != map.end()) {
+        auto charDiffs = *iter->second.GetValue<StringKeyedMap<LevelPreset>>();
+        charDiffs[mapID] = value;
+        iter->second.SetValue(charDiffs);
+    } else
+        map[levelID] = StringKeyedMap<LevelPreset>({{mapID, value}});
+    getModConfig().Levels.SetValue(map);
+}
+
+void SetLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap, LevelPreset value) {
+    MigrateLevelPresets(beatmap);
+
+    std::string id = beatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
+    std::string charDiff = beatmap->get_parentDifficultyBeatmapSet()->get_beatmapCharacteristic()->serializedName;
+    charDiff += std::to_string((int) beatmap->get_difficulty());
+
+    SetLevelPreset(id, charDiff, value);
+}
+
+void RemoveLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap) {
+    MigrateLevelPresets(beatmap);
+
+    std::string id = beatmap->get_level()->i_IPreviewBeatmapLevel()->get_levelID();
+    std::string charDiff = beatmap->get_parentDifficultyBeatmapSet()->get_beatmapCharacteristic()->serializedName;
+    charDiff += std::to_string((int) beatmap->get_difficulty());
+
+    auto map = getModConfig().Levels.GetValue();
+    auto iter = map.find(id);
+    if(iter == map.end())
+        return;
+    auto charDiffs = *iter->second.GetValue<StringKeyedMap<LevelPreset>>();
+    auto iter2 = charDiffs.find(charDiff);
+    if(iter2 == charDiffs.end())
+        return;
+    charDiffs.erase(iter2);
+
+    iter->second.SetValue(charDiffs);
+    getModConfig().Levels.SetValue(map);
 }
 
 inline float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
@@ -138,9 +243,7 @@ bool ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm)
 }
 
 void Preset::UpdateLevelPreset() {
-    auto levels = getModConfig().Levels.GetValue();
-    levels[internalLevelID] = internalLevel;
-    getModConfig().Levels.SetValue(levels);
+    SetLevelPreset(internalLevelID, internalMapID, internalLevel);
 }
 
 void Preset::UpdateCondition() {
@@ -376,10 +479,13 @@ void Preset::UpdateLevel(Values const& levelValues) {
     SetNJS(levelNJS);
 }
 
-Preset::Preset(std::string levelID, Values const& levelValues) {
+Preset::Preset(std::string levelID, std::string mapID, Values const& levelValues) {
     type = Type::Level;
     internalLevelID = levelID;
-    internalLevel = getModConfig().Levels.GetValue()[levelID];
+    internalMapID = mapID;
+    auto presets = getModConfig().Levels.GetValue()[levelID];
+    auto maps = *presets.GetValue<StringKeyedMap<LevelPreset>>();
+    internalLevel = maps[mapID];
     levelNJS = levelValues.njs;
 }
 
