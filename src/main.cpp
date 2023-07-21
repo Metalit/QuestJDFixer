@@ -25,6 +25,7 @@ using namespace GlobalNamespace;
 
 static ModInfo modInfo;
 
+bool inPractice = false;
 float practiceSpeed = 1;
 float modifierSpeed = 1;
 
@@ -49,8 +50,9 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = values.MainValue;
 
+        // convert distance to duration
         float actualNjs = startNoteJumpMovementSpeed;
-        if(practiceSpeed == 1)
+        if(!inPractice)
             actualNjs = startNoteJumpMovementSpeed * modifierSpeed;
         if(!values.UseDuration)
             noteJumpValue /= actualNjs;
@@ -58,12 +60,22 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_Init, &BeatmapObjectSpawnMovement
         if(!getModConfig().Half.GetValue())
             noteJumpValue *= 0.5;
 
+        // if we do need to adjust for speed modifications, we have to actually increase the duration when the njs is faster, counterintuitively
+        // this is because increasing the speed doesn't actually change the njs the game uses, but instead effectively speeds up time
+        // so the effect is identical to faster njs, but we need to increase the duration instead of distance to make it result in the same amount of time
+        if(values.UseDuration) {
+            if(inPractice) // modifiers don't apply in practice mode
+                noteJumpValue *= practiceSpeed;
+            else
+                noteJumpValue *= modifierSpeed;
+        }
         if(getModConfig().Practice.GetValue()) {
             self->moveSpeed /= practiceSpeed;
             startNoteJumpMovementSpeed /= practiceSpeed;
-            noteJumpValue *= practiceSpeed;
-        } else if(values.UseDuration)
-            noteJumpValue *= practiceSpeed; // idek
+            // compensate for distance since we actually changed the njs
+            if(!values.UseDuration)
+                noteJumpValue *= practiceSpeed;
+        }
 
         getLogger().info("Changing jump duration to %.2f", noteJumpValue * 2);
     }
@@ -102,7 +114,8 @@ MAKE_HOOK_MATCH(LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsyn
     UpdateLevel(self->gameplayCoreSceneSetupData->difficultyBeatmap, modifierSpeed);
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
-    practiceSpeed = practiceSettings ? practiceSettings->songSpeedMul : 1;
+    inPractice = practiceSettings != nullptr;
+    practiceSpeed = inPractice ? practiceSettings->songSpeedMul : 1;
 
     return LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
 }
