@@ -1,32 +1,27 @@
 #pragma once
 
-#include "config.hpp"
-
 #include "GlobalNamespace/BeatmapDifficulty.hpp"
 #include "GlobalNamespace/IReadonlyBeatmapData.hpp"
+#include "config.hpp"
 
 float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
 
-std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap);
-void SetLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap, LevelPreset value);
-void RemoveLevelPreset(GlobalNamespace::IDifficultyBeatmap* beatmap);
+std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(DifficultyBeatmap beatmap);
+void SetLevelPreset(DifficultyBeatmap beatmap, LevelPreset value);
+void RemoveLevelPreset(DifficultyBeatmap beatmap);
 
 struct Values {
     float halfJumpDuration;
     float halfJumpDistance;
     float njs;
-    float GetJumpDuration() const {
-        return halfJumpDuration * (getModConfig().Half.GetValue() ? 1 : 2);
-    }
-    float GetJumpDistance() const {
-        return halfJumpDistance * (getModConfig().Half.GetValue() ? 1 : 2);
-    }
+    float GetJumpDuration() const { return halfJumpDuration * (getModConfig().Half.GetValue() ? 1 : 2); }
+    float GetJumpDistance() const { return halfJumpDistance * (getModConfig().Half.GetValue() ? 1 : 2); }
 };
 
-Values GetLevelDefaults(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
+Values GetLevelDefaults(DifficultyBeatmap beatmap, float speed);
 
-float GetNPS(GlobalNamespace::IPreviewBeatmapLevel* beatmap, GlobalNamespace::IReadonlyBeatmapData* data);
-float GetBPM(GlobalNamespace::IDifficultyBeatmap* beatmap);
+float GetNPS(GlobalNamespace::BeatmapLevel* beatmap, GlobalNamespace::IReadonlyBeatmapData* data);
+float GetBPM(GlobalNamespace::BeatmapLevel* beatmap);
 
 float GetValue(Values& values, int id);
 
@@ -34,11 +29,7 @@ bool ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm)
 
 #define PROP(type, name) void Set##name(type value); type Get##name();
 class Preset {
-    enum class Type {
-        Main,
-        Level,
-        Condition
-    };
+    enum class Type { Main, Level, Condition };
     Type type = Type::Main;
     LevelPreset internalLevel;
     ConditionPreset internalCondition;
@@ -49,7 +40,8 @@ class Preset {
     void UpdateCondition();
     float levelNJS = 0;
     float Bound(float value);
-    public:
+
+   public:
     PROP(float, MainValue);
     PROP(float, Distance);
     PROP(float, Duration);

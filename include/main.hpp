@@ -1,7 +1,7 @@
 #pragma once
 
-#include "beatsaber-hook/shared/utils/il2cpp-utils.hpp"
-#include "beatsaber-hook/shared/config/config-utils.hpp"
+#include "beatsaber-hook/shared/utils/logging.hpp"
 
-Logger& getLogger();
-ModInfo& getModInfo();
+static constexpr auto logger = Paper::ConstLoggerContext(MOD_ID);
+
+extern modloader::ModInfo modInfo;

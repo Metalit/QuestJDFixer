@@ -1,19 +1,50 @@
 {
+  "version": "0.1.0",
   "sharedDir": "shared",
   "dependenciesDir": "extern",
   "info": {
     "name": "JDFixer",
     "id": "jdfixer",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "url": null,
     "additionalData": {
       "overrideSoName": "libjdfixer.so"
     }
   },
+  "workspace": {
+    "scripts": {
+      "build": [
+        "pwsh ./scripts/build.ps1 $0?"
+      ],
+      "copy": [
+        "pwsh ./scripts/copy.ps1 $0:?",
+        "pwsh ./scripts/restart-game.ps1"
+      ],
+      "log": [
+        "pwsh ./scripts/start-logging.ps1 $0:?"
+      ],
+      "qmod": [
+        "pwsh ./scripts/build.ps1 $0?",
+        "pwsh ./scripts/createqmod.ps1"
+      ],
+      "restart": [
+        "pwsh ./scripts/restart-game.ps1"
+      ],
+      "stack": [
+        "pwsh ./scripts/ndk-stack.ps1 $0:?"
+      ],
+      "tomb": [
+        "pwsh ./scripts/pull-tombstone.ps1 -analyze"
+      ]
+    },
+    "qmodIncludeDirs": [],
+    "qmodIncludeFiles": [],
+    "qmodOutput": null
+  },
   "dependencies": [
     {
       "id": "beatsaber-hook",
-      "versionRange": "^3.14.0",
+      "versionRange": "^5.1.6",
       "additionalData": {
         "extraFiles": [
           "src/inline-hook"
@@ -21,30 +52,41 @@
       }
     },
     {
-      "id": "codegen",
-      "versionRange": "^0.33.0",
+      "id": "scotland2",
+      "versionRange": "^0.1.4",
+      "additionalData": {
+        "includeQmod": false
+      }
+    },
+    {
+      "id": "bs-cordl",
+      "versionRange": "^3601.0.0",
       "additionalData": {}
     },
     {
-      "id": "questui",
-      "versionRange": "^0.17.4",
-      "additionalData": {}
-    },
-    {
-      "id": "custom-types",
-      "versionRange": "^0.15.21",
-      "additionalData": {}
-    },
-    {
-      "id": "config-utils",
-      "versionRange": "^1.1.0",
+      "id": "paper",
+      "versionRange": "^3.6.3",
       "additionalData": {}
     },
     {
       "id": "bs-utils",
-      "versionRange": "^0.7.0",
+      "versionRange": "^0.8.2",
+      "additionalData": {}
+    },
+    {
+      "id": "bsml",
+      "versionRange": "^0.4.29",
+      "additionalData": {}
+    },
+    {
+      "id": "config-utils",
+      "versionRange": "^1.4.2",
+      "additionalData": {}
+    },
+    {
+      "id": "custom-types",
+      "versionRange": "^0.17.7",
       "additionalData": {}
     }
-  ],
-  "additionalData": {}
+  ]
 }

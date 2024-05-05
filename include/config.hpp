@@ -1,8 +1,21 @@
 #pragma once
 
+#include "GlobalNamespace/BeatmapKey.hpp"
+#include "GlobalNamespace/BeatmapLevel.hpp"
 #include "config-utils/shared/config-utils.hpp"
 
-#include "GlobalNamespace/IDifficultyBeatmap.hpp"
+struct DifficultyBeatmap {
+    GlobalNamespace::BeatmapKey difficulty;
+    GlobalNamespace::BeatmapLevel* level;
+
+    DifficultyBeatmap() = default;
+    DifficultyBeatmap(GlobalNamespace::BeatmapKey diff, GlobalNamespace::BeatmapLevel* lev) : difficulty(diff), level(lev){};
+
+    bool operator==(DifficultyBeatmap const& rhs) const {
+        return level == rhs.level && GlobalNamespace::BeatmapKey::op_Equality(difficulty, rhs.difficulty);
+    };
+    constexpr operator bool() const noexcept { return level != nullptr && difficulty.beatmapCharacteristic != nullptr && difficulty.levelId; }
+};
 
 struct Indicator {
     std::string id = "";
@@ -62,14 +75,14 @@ DECLARE_CONFIG(ModConfig,
     CONFIG_VALUE(NJS, float, "Note Jump Speed", 18.0, "The note jump speed to set the level to");
     CONFIG_VALUE(Presets, std::vector<ConditionPreset>, "Presets", {});
 
-    // map from characteristic ser. name + difficulty "Standard2" to preset
-    // since I forgot to specify difficulty and characteristic originally, no map applies to all
+    // level id to characteristic ser. name + difficulty, ex. "Standard2" to preset
+    // since I forgot to specify difficulty and characteristic originally, no char/diff applies to all
     // it's converted when loaded though to avoid conflicts
     using LevelPresetOptions = TypeOptions<LevelPreset, StringKeyedMap<LevelPreset>>;
     CONFIG_VALUE(Levels, StringKeyedMap<LevelPresetOptions>, "Level Presets", {});
 )
 
-void UpdateLevel(GlobalNamespace::IDifficultyBeatmap* beatmap, float speed);
+void UpdateLevel(DifficultyBeatmap beatmap, float speed);
 void UpdateNotesPerSecond(float nps);
 LevelPreset GetAppliedValues();
 
