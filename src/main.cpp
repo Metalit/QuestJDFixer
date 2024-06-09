@@ -12,6 +12,7 @@
 #include "GlobalNamespace/PlayerDataModel.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
+#include "BeatSaber/PerformancePresets/PerformancePreset.hpp"
 #include "UnityEngine/Vector3.hpp"
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 #include "bsml/shared/BSML.hpp"
@@ -70,7 +71,7 @@ MAKE_HOOK_MATCH(
                 noteJumpValue *= modifierSpeed;
         }
         if (getModConfig().Practice.GetValue()) {
-            self->_moveSpeed /= practiceSpeed;
+            self->____moveSpeed /= practiceSpeed;
             startNoteJumpMovementSpeed /= practiceSpeed;
             // compensate for distance since we actually changed the njs
             if (!values.UseDuration)
@@ -90,7 +91,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
     StandardLevelDetailView_RefreshContent(self);
 
     logger.info("Loading level in menu");
-    UpdateLevel({self->beatmapKey, self->_beatmapLevel}, modifierSpeed);
+    UpdateLevel({self->get_beatmapKey(), self->____beatmapLevel}, modifierSpeed);
 }
 
 MAKE_HOOK_MATCH(LevelParamsPanel_set_notesPerSecond, &LevelParamsPanel::set_notesPerSecond, void, LevelParamsPanel* self, float value) {
@@ -106,11 +107,11 @@ MAKE_HOOK_MATCH(
     System::Threading::Tasks::Task*,
     LevelScenesTransitionSetupDataSO* self
 ) {
-    UpdateLevel({self->gameplayCoreSceneSetupData->beatmapKey, self->gameplayCoreSceneSetupData->beatmapLevel}, modifierSpeed);
+    UpdateLevel({self->get_gameplayCoreSceneSetupData()->___beatmapKey, self->get_gameplayCoreSceneSetupData()->___beatmapLevel}, modifierSpeed);
 
-    auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
+    auto practiceSettings = self->get_gameplayCoreSceneSetupData()->___practiceSettings;
     inPractice = practiceSettings != nullptr;
-    practiceSpeed = inPractice ? practiceSettings->songSpeedMul : 1;
+    practiceSpeed = inPractice ? practiceSettings->____songSpeedMul : 1;
 
     return LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync(self);
 }
@@ -121,11 +122,10 @@ MAKE_HOOK_MATCH(
     IReadonlyBeatmapData*,
     IReadonlyBeatmapData* beatmapData,
     BeatmapLevel* beatmapLevel,
-    GameplayModifiers* gameplayModifiers,
-    bool leftHanded,
+    GameplayModifiers* gameplayModifiers, bool leftHanded,
     EnvironmentEffectsFilterPreset environmentEffectsFilterPreset,
     EnvironmentIntensityReductionOptions* environmentIntensityReductionOptions,
-    MainSettingsModelSO* mainSettingsModel
+    BeatSaber::PerformancePresets::PerformancePreset* performancePreset
 ) {
     UpdateNotesPerSecond(GetNPS(beatmapLevel, beatmapData));
 
@@ -136,7 +136,7 @@ MAKE_HOOK_MATCH(
         leftHanded,
         environmentEffectsFilterPreset,
         environmentIntensityReductionOptions,
-        mainSettingsModel
+        performancePreset
     );
 }
 
@@ -151,7 +151,7 @@ MAKE_HOOK_MATCH(
 
     PlayerDataModel_Inject(self, playerDataJsonString, playerDataFileModel);
 
-    modifierSpeed = self->playerData->gameplayModifiers->get_songSpeedMul();
+    modifierSpeed = self->____playerData->get_gameplayModifiers()->get_songSpeedMul();
 }
 
 MAKE_HOOK_MATCH(
@@ -162,7 +162,7 @@ MAKE_HOOK_MATCH(
 ) {
     GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI(self);
 
-    modifierSpeed = self->gameplayModifiers->get_songSpeedMul();
+    modifierSpeed = self->____gameplayModifiers->get_songSpeedMul();
 
     UpdateLevel({}, modifierSpeed);
 }
