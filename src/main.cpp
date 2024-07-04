@@ -125,7 +125,7 @@ MAKE_HOOK_MATCH(
     bool leftHanded,
     EnvironmentEffectsFilterPreset environmentEffectsFilterPreset,
     EnvironmentIntensityReductionOptions* environmentIntensityReductionOptions,
-    MainSettingsModelSO* mainSettingsModel
+    BeatSaber::PerformancePresets::PerformancePreset* performancePreset
 ) {
     UpdateNotesPerSecond(GetNPS(beatmapLevel, beatmapData));
 
@@ -136,7 +136,7 @@ MAKE_HOOK_MATCH(
         leftHanded,
         environmentEffectsFilterPreset,
         environmentIntensityReductionOptions,
-        mainSettingsModel
+        performancePreset
     );
 }
 
