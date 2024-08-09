@@ -1,6 +1,7 @@
 #include "main.hpp"
 
 #include "GlobalNamespace/BeatmapDataTransformHelper.hpp"
+#include "GlobalNamespace/BeatmapObjectSpawnControllerHelpers.hpp"
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData.hpp"
 #include "GlobalNamespace/EnvironmentEffectsFilterPreset.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
@@ -83,6 +84,22 @@ MAKE_HOOK_MATCH(
     BeatmapObjectSpawnMovementData_Init(
         self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec
     );
+}
+
+MAKE_HOOK_MATCH(
+    BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues,
+    &BeatmapObjectSpawnControllerHelpers::GetNoteJumpValues,
+    void,
+    ::GlobalNamespace::PlayerSpecificSettings* playerSpecificSettings,
+    float_t defaultNoteJumpStartBeatOffset,
+    ByRef<::GlobalNamespace::__BeatmapObjectSpawnMovementData__NoteJumpValueType> noteJumpValueType,
+    ByRef<float_t> noteJumpValue
+) {
+    BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues(playerSpecificSettings, defaultNoteJumpStartBeatOffset, noteJumpValueType, noteJumpValue);
+
+    if (!getModConfig().Disable.GetValue()) {
+        *noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
+    }
 }
 
 MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
@@ -187,6 +204,7 @@ extern "C" void load() {
 
     // Install hooks
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
+    INSTALL_HOOK(logger, BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     INSTALL_HOOK(logger, LevelParamsPanel_set_notesPerSecond);
     INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
