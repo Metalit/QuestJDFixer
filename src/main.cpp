@@ -1,6 +1,7 @@
 #include "main.hpp"
 
 #include "GlobalNamespace/BeatmapDataTransformHelper.hpp"
+#include "GlobalNamespace/BeatmapObjectSpawnControllerHelpers.hpp"
 #include "GlobalNamespace/BeatmapObjectSpawnMovementData.hpp"
 #include "GlobalNamespace/EnvironmentEffectsFilterPreset.hpp"
 #include "GlobalNamespace/GameplayCoreSceneSetupData.hpp"
@@ -26,7 +27,6 @@ bool inPractice = false;
 float practiceSpeed = 1;
 float modifierSpeed = 1;
 
-// Hooks
 MAKE_HOOK_MATCH(
     BeatmapObjectSpawnMovementData_Init,
     &BeatmapObjectSpawnMovementData::Init,
@@ -52,7 +52,7 @@ MAKE_HOOK_MATCH(
         // convert distance to duration
         float actualNjs = startNoteJumpMovementSpeed;
         if (!inPractice)
-            actualNjs = startNoteJumpMovementSpeed * modifierSpeed;
+            actualNjs *= modifierSpeed;
         if (!values.UseDuration)
             noteJumpValue /= actualNjs;
 
@@ -83,6 +83,21 @@ MAKE_HOOK_MATCH(
     BeatmapObjectSpawnMovementData_Init(
         self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec
     );
+}
+
+MAKE_HOOK_MATCH(
+    BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues,
+    &BeatmapObjectSpawnControllerHelpers::GetNoteJumpValues,
+    void,
+    PlayerSpecificSettings* playerSpecificSettings,
+    float defaultNoteJumpStartBeatOffset,
+    ByRef<BeatmapObjectSpawnMovementData::NoteJumpValueType> noteJumpValueType,
+    ByRef<float> noteJumpValue
+) {
+    BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues(playerSpecificSettings, defaultNoteJumpStartBeatOffset, noteJumpValueType, noteJumpValue);
+
+    if (!getModConfig().Disable.GetValue())
+        *noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
 }
 
 MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView::RefreshContent, void, StandardLevelDetailView* self) {
@@ -148,7 +163,6 @@ MAKE_HOOK_MATCH(
     StringW playerDataJsonString,
     PlayerDataFileModel* playerDataFileModel
 ) {
-
     PlayerDataModel_Inject(self, playerDataJsonString, playerDataFileModel);
 
     modifierSpeed = self->playerData->gameplayModifiers->get_songSpeedMul();
@@ -187,6 +201,7 @@ extern "C" void load() {
 
     // Install hooks
     INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
+    INSTALL_HOOK(logger, BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     INSTALL_HOOK(logger, LevelParamsPanel_set_notesPerSecond);
     INSTALL_HOOK(logger, LevelScenesTransitionSetupDataSO_BeforeScenesWillBeActivatedAsync);
