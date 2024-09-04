@@ -88,6 +88,11 @@
         "id": "custom-types",
         "versionRange": "^0.17.10",
         "additionalData": {}
+      },
+      {
+        "id": "conditional-dependencies",
+        "versionRange": "^0.3.0",
+        "additionalData": {}
       }
     ]
   },
@@ -109,38 +114,30 @@
     },
     {
       "dependency": {
-        "id": "bs-utils",
-        "versionRange": "=0.8.3",
+        "id": "rapidjson-macros",
+        "versionRange": "=1.2.1",
         "additionalData": {
-          "soLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.3/libbs-utils.so",
-          "debugSoLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.3/debug_libbs-utils.so",
-          "overrideSoName": "libbs-utils.so",
-          "modLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.3/BS-Utils.qmod",
-          "branchName": "version/v0_8_3",
+          "headersOnly": true,
+          "branchName": "version/v1_2_1",
           "cmake": true
         }
       },
-      "version": "0.8.3"
+      "version": "1.2.1"
     },
     {
       "dependency": {
-        "id": "paper",
-        "versionRange": "=3.6.3",
+        "id": "bs-utils",
+        "versionRange": "=0.8.4",
         "additionalData": {
-          "soLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.3/libpaperlog.so",
-          "debugSoLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.3/debug_libpaperlog.so",
-          "overrideSoName": "libpaperlog.so",
-          "modLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.3/paperlog.qmod",
-          "branchName": "version/v3_6_3",
-          "compileOptions": {
-            "systemIncludes": [
-              "shared/utfcpp/source"
-            ]
-          },
-          "cmake": false
+          "soLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.4/libbs-utils.so",
+          "debugSoLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.4/debug_libbs-utils.so",
+          "overrideSoName": "libbs-utils.so",
+          "modLink": "https://github.com/RedBrumbler/QuestBS-Utils/releases/download/v0.8.4/BS-Utils.qmod",
+          "branchName": "version/v0_8_4",
+          "cmake": true
         }
       },
-      "version": "3.6.3"
+      "version": "0.8.4"
     },
     {
       "dependency": {
@@ -178,15 +175,23 @@
     },
     {
       "dependency": {
-        "id": "rapidjson-macros",
-        "versionRange": "=1.2.1",
+        "id": "paper",
+        "versionRange": "=3.6.4",
         "additionalData": {
-          "headersOnly": true,
-          "branchName": "version/v1_2_1",
-          "cmake": true
+          "soLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.4/libpaperlog.so",
+          "debugSoLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.4/debug_libpaperlog.so",
+          "overrideSoName": "libpaperlog.so",
+          "modLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.6.4/paperlog.qmod",
+          "branchName": "version/v3_6_4",
+          "compileOptions": {
+            "systemIncludes": [
+              "shared/utfcpp/source"
+            ]
+          },
+          "cmake": false
         }
       },
-      "version": "1.2.1"
+      "version": "3.6.4"
     },
     {
       "dependency": {
@@ -221,6 +226,18 @@
         }
       },
       "version": "3700.0.0"
+    },
+    {
+      "dependency": {
+        "id": "conditional-dependencies",
+        "versionRange": "=0.3.0",
+        "additionalData": {
+          "headersOnly": true,
+          "branchName": "version/v0_3_0",
+          "cmake": false
+        }
+      },
+      "version": "0.3.0"
     },
     {
       "dependency": {

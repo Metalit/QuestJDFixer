@@ -1,9 +1,10 @@
 #include "utils.hpp"
 
+#include "GlobalNamespace/BeatmapBasicData.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
 #include "GlobalNamespace/BeatmapLevel.hpp"
-#include "GlobalNamespace/BeatmapBasicData.hpp"
 #include "bs-utils/shared/utils.hpp"
+#include "conditional-dependencies/shared/main.hpp"
 #include "main.hpp"
 
 using namespace GlobalNamespace;
@@ -42,6 +43,20 @@ float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatO
         halfJumpDuration = 0.25;
     // turn back into duration in seconds, instead of in beats
     return halfJumpDuration * beatDuration;
+}
+
+float GetNJSModifier(float speedModifier) {
+    static auto RebeatEnabled = CondDeps::Find<bool>("rebeat", "GetEnabled");
+    if (!RebeatEnabled || !RebeatEnabled.value()())
+        return speedModifier;
+    switch ((int) (speedModifier * 10)) {
+        case 12:
+            return 1.1;
+        case 15:
+            return 1.3;
+        default:
+            return 1;
+    }
 }
 
 std::vector<std::pair<std::string, int>> GetAllBeatmaps(DifficultyBeatmap beatmap) {

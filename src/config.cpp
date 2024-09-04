@@ -272,7 +272,7 @@ void UpdateMainUI() {
 }
 
 void UpdateConditions() {
-    auto transform = conditionsParent->get_transform();
+    auto transform = conditionsParent->transform;
     int children = transform->GetChildCount();
     for (int i = 0; i < children; i++) {
         if (i < currentModifiedValues.GetConditionCount() * 4) {
@@ -347,7 +347,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         mainVertical->childForceExpandWidth = true;
         mainVertical->spacing = 0.5;
 
-        mainParent = mainVertical->get_gameObject();
+        mainParent = mainVertical->gameObject;
 
         // raise up container
         mainVertical->rectTransform->anchoredPosition = {0, 4};
@@ -378,7 +378,7 @@ void GameplaySettings(UnityEngine::GameObject* gameObject, bool firstActivation)
         spaced->constraint = UnityEngine::UI::GridLayoutGroup::Constraint::FixedRowCount;
         spaced->constraintCount = 2;
         spaced->cellSize = {30, 8};
-        spaced->get_rectTransform()->sizeDelta = {0, 12};
+        spaced->rectTransform->sizeDelta = {0, 12};
         spaced->spacing = {0, -2};
 
         UnityEngine::Color labelColor(0.3, 0.7, 1, 1);

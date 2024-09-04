@@ -5,6 +5,7 @@
 #include "config.hpp"
 
 float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset);
+float GetNJSModifier(float speedModifier);
 
 std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(DifficultyBeatmap beatmap);
 void SetLevelPreset(DifficultyBeatmap beatmap, LevelPreset value);

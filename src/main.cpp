@@ -165,7 +165,7 @@ MAKE_HOOK_MATCH(
 ) {
     PlayerDataModel_Inject(self, playerDataJsonString, playerDataFileModel);
 
-    modifierSpeed = self->playerData->gameplayModifiers->get_songSpeedMul();
+    modifierSpeed = GetNJSModifier(self->playerData->gameplayModifiers->songSpeedMul);
 }
 
 MAKE_HOOK_MATCH(
@@ -176,7 +176,7 @@ MAKE_HOOK_MATCH(
 ) {
     GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI(self);
 
-    modifierSpeed = self->gameplayModifiers->get_songSpeedMul();
+    modifierSpeed = GetNJSModifier(self->gameplayModifiers->songSpeedMul);
 
     UpdateLevel({}, modifierSpeed);
 }

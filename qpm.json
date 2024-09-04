@@ -87,6 +87,11 @@
       "id": "custom-types",
       "versionRange": "^0.17.10",
       "additionalData": {}
+    },
+    {
+      "id": "conditional-dependencies",
+      "versionRange": "^0.3.0",
+      "additionalData": {}
     }
   ]
 }
