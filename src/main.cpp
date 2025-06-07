@@ -13,6 +13,7 @@
 #include "GlobalNamespace/PlayerDataModel.hpp"
 #include "GlobalNamespace/PracticeSettings.hpp"
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
+#include "GlobalNamespace/VariableMovementDataProvider.hpp"
 #include "UnityEngine/Vector3.hpp"
 #include "beatsaber-hook/shared/utils/hooking.hpp"
 #include "bsml/shared/BSML.hpp"
@@ -21,36 +22,37 @@
 
 using namespace GlobalNamespace;
 
-modloader::ModInfo modInfo = {MOD_ID, VERSION, 0};
+static modloader::ModInfo modInfo = {MOD_ID, VERSION, 0};
 
-bool inPractice = false;
-float practiceSpeed = 1;
-float modifierSpeed = 1;
+static bool inPractice = false;
+static float practiceSpeed = 1;
+static float modifierSpeed = 1;
 
 MAKE_HOOK_MATCH(
-    BeatmapObjectSpawnMovementData_Init,
-    &BeatmapObjectSpawnMovementData::Init,
+    VariableMovementDataProvider_Init,
+    &VariableMovementDataProvider::Init,
     void,
-    BeatmapObjectSpawnMovementData* self,
-    int noteLinesCount,
-    float startNoteJumpMovementSpeed,
-    float startBpm,
+    VariableMovementDataProvider* self,
+    float startHalfJumpDurationInBeats,
+    float maxHalfJumpDistance,
+    float noteJumpMovementSpeed,
+    float minRelativeNoteJumpSpeed,
+    float bpm,
     BeatmapObjectSpawnMovementData::NoteJumpValueType noteJumpValueType,
     float noteJumpValue,
-    IJumpOffsetYProvider* jumpOffsetYProvider,
-    UnityEngine::Vector3 rightVec,
-    UnityEngine::Vector3 forwardVec
+    UnityEngine::Vector3 centerPosition,
+    UnityEngine::Vector3 forwardVector
 ) {
     if (!getModConfig().Disable.GetValue()) {
-        auto values = GetAppliedValues();
+        auto values = JDFixer::GetAppliedValues();
         if (values.OverrideNJS)
-            startNoteJumpMovementSpeed = values.NJS;
+            noteJumpMovementSpeed = values.NJS;
 
         noteJumpValueType = BeatmapObjectSpawnMovementData::NoteJumpValueType::JumpDuration;
         noteJumpValue = values.MainValue;
 
         // convert distance to duration
-        float actualNjs = startNoteJumpMovementSpeed;
+        float actualNjs = noteJumpMovementSpeed;
         if (!inPractice)
             actualNjs *= modifierSpeed;
         if (!values.UseDuration)
@@ -70,8 +72,7 @@ MAKE_HOOK_MATCH(
                 noteJumpValue *= modifierSpeed;
         }
         if (getModConfig().Practice.GetValue()) {
-            self->_moveSpeed /= practiceSpeed;
-            startNoteJumpMovementSpeed /= practiceSpeed;
+            noteJumpMovementSpeed /= practiceSpeed;
             // compensate for distance since we actually changed the njs
             if (!values.UseDuration)
                 noteJumpValue *= practiceSpeed;
@@ -80,9 +81,29 @@ MAKE_HOOK_MATCH(
         logger.info("Changing jump duration to {:.2f}", noteJumpValue * 2);
     }
 
-    BeatmapObjectSpawnMovementData_Init(
-        self, noteLinesCount, startNoteJumpMovementSpeed, startBpm, noteJumpValueType, noteJumpValue, jumpOffsetYProvider, rightVec, forwardVec
+    VariableMovementDataProvider_Init(
+        self,
+        startHalfJumpDurationInBeats,
+        maxHalfJumpDistance,
+        noteJumpMovementSpeed,
+        minRelativeNoteJumpSpeed,
+        bpm,
+        noteJumpValueType,
+        noteJumpValue,
+        centerPosition,
+        forwardVector
     );
+}
+
+MAKE_HOOK_MATCH(
+    VariableMovementDataProvider_HandleNoteJumpMovementSpeedEvent,
+    &VariableMovementDataProvider::HandleNoteJumpMovementSpeedEvent,
+    void,
+    VariableMovementDataProvider* self,
+    NoteJumpSpeedEventData* currentEventData
+) {
+    if (getModConfig().Disable.GetValue() || !JDFixer::GetAppliedValues().OverrideNJS)
+        VariableMovementDataProvider_HandleNoteJumpMovementSpeedEvent(self, currentEventData);
 }
 
 MAKE_HOOK_MATCH(
@@ -105,14 +126,14 @@ MAKE_HOOK_MATCH(StandardLevelDetailView_RefreshContent, &StandardLevelDetailView
     StandardLevelDetailView_RefreshContent(self);
 
     logger.info("Loading level in menu");
-    UpdateLevel({self->beatmapKey, self->_beatmapLevel}, modifierSpeed);
+    JDFixer::UpdateLevel(self->beatmapKey, modifierSpeed);
 }
 
 MAKE_HOOK_MATCH(LevelParamsPanel_set_notesPerSecond, &LevelParamsPanel::set_notesPerSecond, void, LevelParamsPanel* self, float value) {
 
     LevelParamsPanel_set_notesPerSecond(self, value);
 
-    UpdateNotesPerSecond(value);
+    JDFixer::UpdateNotesPerSecond(value);
 }
 
 MAKE_HOOK_MATCH(
@@ -121,7 +142,7 @@ MAKE_HOOK_MATCH(
     System::Threading::Tasks::Task*,
     LevelScenesTransitionSetupDataSO* self
 ) {
-    UpdateLevel({self->gameplayCoreSceneSetupData->beatmapKey, self->gameplayCoreSceneSetupData->beatmapLevel}, modifierSpeed);
+    JDFixer::UpdateLevel(self->gameplayCoreSceneSetupData->beatmapKey, modifierSpeed);
 
     auto practiceSettings = self->gameplayCoreSceneSetupData->practiceSettings;
     inPractice = practiceSettings != nullptr;
@@ -140,18 +161,12 @@ MAKE_HOOK_MATCH(
     bool leftHanded,
     EnvironmentEffectsFilterPreset environmentEffectsFilterPreset,
     EnvironmentIntensityReductionOptions* environmentIntensityReductionOptions,
-    BeatSaber::PerformancePresets::PerformancePreset* performancePreset
+    ByRef<::BeatSaber::Settings::Settings> settings
 ) {
-    UpdateNotesPerSecond(GetNPS(beatmapLevel, beatmapData));
+    JDFixer::UpdateNotesPerSecond(JDFixer::GetNPS(beatmapLevel, beatmapData));
 
     return BeatmapDataTransformHelper_CreateTransformedBeatmapData(
-        beatmapData,
-        beatmapLevel,
-        gameplayModifiers,
-        leftHanded,
-        environmentEffectsFilterPreset,
-        environmentIntensityReductionOptions,
-        performancePreset
+        beatmapData, beatmapLevel, gameplayModifiers, leftHanded, environmentEffectsFilterPreset, environmentIntensityReductionOptions, settings
     );
 }
 
@@ -165,7 +180,7 @@ MAKE_HOOK_MATCH(
 ) {
     PlayerDataModel_Inject(self, playerDataJsonString, playerDataFileModel);
 
-    modifierSpeed = GetNJSModifier(self->playerData->gameplayModifiers->songSpeedMul);
+    modifierSpeed = JDFixer::GetNJSModifier(self->playerData->gameplayModifiers->songSpeedMul);
 }
 
 MAKE_HOOK_MATCH(
@@ -176,9 +191,9 @@ MAKE_HOOK_MATCH(
 ) {
     GameplayModifiersPanelController_RefreshTotalMultiplierAndRankUI(self);
 
-    modifierSpeed = GetNJSModifier(self->gameplayModifiers->songSpeedMul);
+    modifierSpeed = JDFixer::GetNJSModifier(self->gameplayModifiers->songSpeedMul);
 
-    UpdateLevel({}, modifierSpeed);
+    JDFixer::UpdateLevel({}, modifierSpeed);
 }
 
 extern "C" void setup(CModInfo* info) {
@@ -195,12 +210,13 @@ extern "C" void load() {
     logger.info("Installing mod...");
     il2cpp_functions::Init();
 
-    UpdateScoreSubmission(getModConfig().UseNJS.GetValue());
+    JDFixer::UpdateScoreSubmission(getModConfig().UseNJS.GetValue());
 
-    BSML::Register::RegisterGameplaySetupTab(MOD_ID, GameplaySettings, BSML::MenuType::All);
+    BSML::Register::RegisterGameplaySetupTab(MOD_ID, JDFixer::GameplaySettings, BSML::MenuType::All);
 
     // Install hooks
-    INSTALL_HOOK(logger, BeatmapObjectSpawnMovementData_Init);
+    INSTALL_HOOK(logger, VariableMovementDataProvider_Init);
+    INSTALL_HOOK(logger, VariableMovementDataProvider_HandleNoteJumpMovementSpeedEvent);
     INSTALL_HOOK(logger, BeatmapObjectSpawnControllerHelpers_GetNoteJumpValues);
     INSTALL_HOOK(logger, StandardLevelDetailView_RefreshContent);
     INSTALL_HOOK(logger, LevelParamsPanel_set_notesPerSecond);

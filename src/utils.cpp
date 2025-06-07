@@ -3,13 +3,14 @@
 #include "GlobalNamespace/BeatmapBasicData.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
 #include "GlobalNamespace/BeatmapLevel.hpp"
-#include "bs-utils/shared/utils.hpp"
 #include "conditional-dependencies/shared/main.hpp"
 #include "main.hpp"
+#include "metacore/shared/game.hpp"
+#include "metacore/shared/songs.hpp"
 
 using namespace GlobalNamespace;
 
-inline float BoundDistance(float halfJumpDistance, float min, float max) {
+static float BoundDistance(float halfJumpDistance, float min, float max) {
     if (halfJumpDistance < min)
         return min;
     if (halfJumpDistance > max)
@@ -17,7 +18,7 @@ inline float BoundDistance(float halfJumpDistance, float min, float max) {
     return halfJumpDistance;
 }
 
-inline float BoundDuration(float halfJumpDuration, float minDist, float maxDist, float njs) {
+static inline float BoundDuration(float halfJumpDuration, float minDist, float maxDist, float njs) {
     float halfJumpDistance = halfJumpDuration * njs;
     return BoundDistance(halfJumpDistance, minDist, maxDist) / njs;
 }
@@ -25,7 +26,7 @@ inline float BoundDuration(float halfJumpDuration, float minDist, float maxDist,
 static constexpr float startHalfJumpDurationInBeats = 4;
 static constexpr float maxHalfJumpDistance = 18;
 
-float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset) {
+float JDFixer::GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatOffset) {
     // transforms into duration in beats, note jump speed in beats
     float halfJumpDuration = startHalfJumpDurationInBeats;
     float distancePerBeat = njs * beatDuration;
@@ -45,7 +46,7 @@ float GetDefaultHalfJumpDuration(float njs, float beatDuration, float startBeatO
     return halfJumpDuration * beatDuration;
 }
 
-float GetNJSModifier(float speedModifier) {
+float JDFixer::GetNJSModifier(float speedModifier) {
     static auto RebeatEnabled = CondDeps::Find<bool>("rebeat", "GetEnabled");
     if (!RebeatEnabled || !RebeatEnabled.value()())
         return speedModifier;
@@ -59,11 +60,12 @@ float GetNJSModifier(float speedModifier) {
     }
 }
 
-std::vector<std::pair<std::string, int>> GetAllBeatmaps(DifficultyBeatmap beatmap) {
+static std::vector<std::pair<std::string, int>> GetAllBeatmaps(GlobalNamespace::BeatmapKey beatmap) {
     std::vector<std::pair<std::string, int>> ret;
 
-    ArrayW<BeatmapKey> keys = beatmap.level->GetBeatmapKeys();
-    for (auto& beatmap : keys) {
+    auto keys = MetaCore::Songs::FindLevel(beatmap)->GetBeatmapKeys();
+
+    for (auto& beatmap : ArrayW<BeatmapKey>(keys)) {
         std::string name = beatmap.beatmapCharacteristic->serializedName;
         int diff = (int) beatmap.difficulty;
         ret.emplace_back(name, diff);
@@ -72,18 +74,18 @@ std::vector<std::pair<std::string, int>> GetAllBeatmaps(DifficultyBeatmap beatma
     return ret;
 }
 
-void MigrateLevelPresets(DifficultyBeatmap beatmap) {
-    std::string id = beatmap.difficulty.levelId;
+static void MigrateLevelPresets(GlobalNamespace::BeatmapKey beatmap) {
+    std::string id = beatmap.levelId;
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(id);
     if (iter == map.end())
         return;
 
     // saved without difficulty/characteristic info, needs to be duplicated to all
-    if (auto value = iter->second.GetValue<LevelPreset>()) {
+    if (auto value = iter->second.GetValue<JDFixer::LevelPreset>()) {
         logger.debug("Duplicating unspecified level preset to all difficulties");
 
-        StringKeyedMap<LevelPreset> newValue;
+        StringKeyedMap<JDFixer::LevelPreset> newValue;
         auto allEntries = GetAllBeatmaps(beatmap);
         for (auto& [charName, diff] : allEntries)
             newValue[charName + std::to_string(diff)] = *value;
@@ -93,18 +95,18 @@ void MigrateLevelPresets(DifficultyBeatmap beatmap) {
     }
 }
 
-std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(DifficultyBeatmap beatmap) {
+std::optional<std::pair<JDFixer::Indicator, JDFixer::LevelPreset>> JDFixer::GetLevelPreset(GlobalNamespace::BeatmapKey beatmap) {
     MigrateLevelPresets(beatmap);
 
-    std::string id = beatmap.difficulty.levelId;
+    std::string id = beatmap.levelId;
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(id);
     if (iter == map.end())
         return std::nullopt;
 
     // search: characteristic ser. name + difficulty "Standard2" to preset
-    std::string charDiff = beatmap.difficulty.beatmapCharacteristic->serializedName;
-    charDiff += std::to_string((int) beatmap.difficulty.difficulty);
+    std::string charDiff = beatmap.beatmapCharacteristic->serializedName;
+    charDiff += std::to_string((int) beatmap.difficulty);
 
     // guaranteed to be a map after migrate
     auto charDiffs = *iter->second.GetValue<StringKeyedMap<LevelPreset>>();
@@ -119,35 +121,35 @@ std::optional<std::pair<Indicator, LevelPreset>> GetLevelPreset(DifficultyBeatma
     return std::make_pair(ret, iter2->second);
 }
 
-void SetLevelPreset(std::string levelID, std::string mapID, LevelPreset value) {
+static void SetLevelPresetInternal(std::string levelID, std::string mapID, JDFixer::LevelPreset value) {
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(levelID);
     if (iter != map.end()) {
-        auto charDiffs = *iter->second.GetValue<StringKeyedMap<LevelPreset>>();
+        auto charDiffs = *iter->second.GetValue<StringKeyedMap<JDFixer::LevelPreset>>();
         charDiffs[mapID] = value;
         iter->second.SetValue(charDiffs);
     } else
-        map[levelID] = StringKeyedMap<LevelPreset>({{mapID, value}});
+        map[levelID] = StringKeyedMap<JDFixer::LevelPreset>({{mapID, value}});
 
     getModConfig().Levels.SetValue(map);
 }
 
-void SetLevelPreset(DifficultyBeatmap beatmap, LevelPreset value) {
+void JDFixer::SetLevelPreset(GlobalNamespace::BeatmapKey beatmap, LevelPreset value) {
     MigrateLevelPresets(beatmap);
 
-    std::string id = beatmap.difficulty.levelId;
-    std::string charDiff = beatmap.difficulty.beatmapCharacteristic->serializedName;
-    charDiff += std::to_string((int) beatmap.difficulty.difficulty);
+    std::string id = beatmap.levelId;
+    std::string charDiff = beatmap.beatmapCharacteristic->serializedName;
+    charDiff += std::to_string((int) beatmap.difficulty);
 
-    SetLevelPreset(id, charDiff, value);
+    SetLevelPresetInternal(id, charDiff, value);
 }
 
-void RemoveLevelPreset(DifficultyBeatmap beatmap) {
+void JDFixer::RemoveLevelPreset(GlobalNamespace::BeatmapKey beatmap) {
     MigrateLevelPresets(beatmap);
 
-    std::string id = beatmap.difficulty.levelId;
-    std::string charDiff = beatmap.difficulty.beatmapCharacteristic->serializedName;
-    charDiff += std::to_string((int) beatmap.difficulty.difficulty);
+    std::string id = beatmap.levelId;
+    std::string charDiff = beatmap.beatmapCharacteristic->serializedName;
+    charDiff += std::to_string((int) beatmap.difficulty);
 
     auto map = getModConfig().Levels.GetValue();
     auto iter = map.find(id);
@@ -164,7 +166,7 @@ void RemoveLevelPreset(DifficultyBeatmap beatmap) {
     getModConfig().Levels.SetValue(map);
 }
 
-inline float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
+static float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
     switch (difficulty) {
         case BeatmapDifficulty::Easy:
             return 10;
@@ -181,16 +183,17 @@ inline float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
     }
 }
 
-Values GetLevelDefaults(DifficultyBeatmap beatmap, float speed) {
+JDFixer::Values JDFixer::GetLevelDefaults(GlobalNamespace::BeatmapKey beatmap, float speed) {
     if (!beatmap)
         return {};
 
-    float bpm = beatmap.level->beatsPerMinute;
-    auto data = beatmap.level->GetDifficultyBeatmapData(beatmap.difficulty.beatmapCharacteristic, beatmap.difficulty.difficulty);
+    auto level = MetaCore::Songs::FindLevel(beatmap);
+    float bpm = level->beatsPerMinute;
+    auto data = level->GetDifficultyBeatmapData(beatmap.beatmapCharacteristic, beatmap.difficulty);
 
     float njs = data->noteJumpMovementSpeed;
     if (njs <= 0)
-        njs = GetDefaultDifficultyNJS(beatmap.difficulty.difficulty);
+        njs = GetDefaultDifficultyNJS(beatmap.difficulty);
 
     float offset = data->noteJumpStartBeatOffset;
 
@@ -201,17 +204,17 @@ Values GetLevelDefaults(DifficultyBeatmap beatmap, float speed) {
     return Values{.halfJumpDuration = halfJumpDuration, .halfJumpDistance = halfJumpDistance, .njs = njs};
 }
 
-float GetNPS(BeatmapLevel* level, IReadonlyBeatmapData* data) {
+float JDFixer::GetNPS(BeatmapLevel* level, IReadonlyBeatmapData* data) {
     float length = level->songDuration;
     int noteCount = data->cuttableNotesCount;
     return noteCount / length;
 }
 
-float GetBPM(BeatmapLevel* level) {
-    return level->beatsPerMinute;
+float JDFixer::GetBPM(BeatmapKey level) {
+    return MetaCore::Songs::FindLevel(level)->beatsPerMinute;
 }
 
-float GetValue(Values& values, int id) {
+float JDFixer::GetValue(Values& values, int id) {
     switch (id) {
         case 1:
             return values.GetJumpDuration();
@@ -224,7 +227,7 @@ float GetValue(Values& values, int id) {
     }
 }
 
-bool ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm) {
+bool JDFixer::ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm) {
     bool matches = true;
     for (auto const& condition : check.Conditions) {
         float value;
@@ -250,17 +253,17 @@ bool ConditionMet(ConditionPreset const& check, float njs, float nps, float bpm)
     return matches;
 }
 
-void Preset::UpdateLevelPreset() {
-    SetLevelPreset(internalLevelID, internalMapID, internalLevel);
+void JDFixer::Preset::UpdateLevelPreset() {
+    SetLevelPresetInternal(internalLevelID, internalMapID, internalLevel);
 }
 
-void Preset::UpdateCondition() {
+void JDFixer::Preset::UpdateCondition() {
     auto presets = getModConfig().Presets.GetValue();
     presets[internalIdx] = internalCondition;
     getModConfig().Presets.SetValue(presets);
 }
 
-float Preset::Bound(float value) {
+float JDFixer::Preset::Bound(float value) {
     if (!GetUseBounds())
         return value;
     if (GetUseDuration())
@@ -269,7 +272,7 @@ float Preset::Bound(float value) {
         return BoundDistance(value, GetBoundMin(), GetBoundMax());
 }
 
-void Preset::SetMainValue(float value) {
+void JDFixer::Preset::SetMainValue(float value) {
     switch (type) {
         case Type::Main:
             if (getModConfig().UseDuration.GetValue())
@@ -291,7 +294,7 @@ void Preset::SetMainValue(float value) {
     }
 }
 
-float Preset::GetMainValue() {
+float JDFixer::Preset::GetMainValue() {
     switch (type) {
         case Type::Main:
             if (getModConfig().UseDuration.GetValue())
@@ -306,33 +309,33 @@ float Preset::GetMainValue() {
     }
 }
 
-void Preset::SetDuration(float value) {
+void JDFixer::Preset::SetDuration(float value) {
     if (GetUseDuration())
         SetMainValue(value);
     else
         SetMainValue(value * GetNJS());
 }
 
-float Preset::GetDuration() {
+float JDFixer::Preset::GetDuration() {
     if (GetUseDuration())
         return Bound(GetMainValue());
     return Bound(GetMainValue()) / GetNJS();
 }
 
-void Preset::SetDistance(float value) {
+void JDFixer::Preset::SetDistance(float value) {
     if (GetUseDuration())
         SetMainValue(value / GetNJS());
     else
         SetMainValue(value);
 }
 
-float Preset::GetDistance() {
+float JDFixer::Preset::GetDistance() {
     if (GetUseDuration())
         return Bound(GetMainValue()) * GetNJS();
     return Bound(GetMainValue());
 }
 
-void Preset::SetNJS(float value) {
+void JDFixer::Preset::SetNJS(float value) {
     switch (type) {
         case Type::Main:
             getModConfig().NJS.SetValue(value);
@@ -348,7 +351,7 @@ void Preset::SetNJS(float value) {
     }
 }
 
-float Preset::GetNJS() {
+float JDFixer::Preset::GetNJS() {
     if (!GetOverrideNJS())
         return levelNJS;
     switch (type) {
@@ -362,7 +365,7 @@ float Preset::GetNJS() {
 }
 
 #define S_PROP(typ, name, cfgName, structName, levelRet, ...) \
-void Preset::Set##name(typ value) { \
+void JDFixer::Preset::Set##name(typ value) { \
     switch(type) { \
     case Type::Main: \
         getModConfig().cfgName.SetValue(value); \
@@ -376,7 +379,7 @@ void Preset::Set##name(typ value) { \
         break; \
     } \
 } \
-typ Preset::Get##name() { \
+typ JDFixer::Preset::Get##name() { \
     switch(type) { \
     case Type::Main: \
         return getModConfig().cfgName.GetValue(); \
@@ -396,7 +399,7 @@ S_PROP(bool, UseBounds, BoundJD, DistanceBounds, false);
 S_PROP(float, BoundMin, MinJD, DistanceMin, 0);
 S_PROP(float, BoundMax, MaxJD, DistanceMax, 0);
 
-void Preset::SetCondition(Condition value, int idx) {
+void JDFixer::Preset::SetCondition(Condition value, int idx) {
     if (type == Type::Condition) {
         if (idx >= internalCondition.Conditions.size())
             internalCondition.Conditions.push_back(value);
@@ -406,39 +409,39 @@ void Preset::SetCondition(Condition value, int idx) {
     }
 }
 
-Condition Preset::GetCondition(int idx) {
+JDFixer::Condition JDFixer::Preset::GetCondition(int idx) {
     if (type == Type::Condition && idx < internalCondition.Conditions.size())
         return internalCondition.Conditions[idx];
     return {};
 }
 
-void Preset::RemoveCondition(int idx) {
+void JDFixer::Preset::RemoveCondition(int idx) {
     if (type == Type::Condition && idx < internalCondition.Conditions.size()) {
         internalCondition.Conditions.erase(internalCondition.Conditions.begin() + idx);
         UpdateCondition();
     }
 }
 
-int Preset::GetConditionCount() {
+int JDFixer::Preset::GetConditionCount() {
     if (type == Type::Condition)
         return internalCondition.Conditions.size();
     return 0;
 }
 
-int Preset::GetConditionPresetIndex() {
+int JDFixer::Preset::GetConditionPresetIndex() {
     if (type == Type::Condition)
         return internalIdx;
     return -1;
 }
 
-void Preset::SyncCondition(int idxChange) {
+void JDFixer::Preset::SyncCondition(int idxChange) {
     if (type != Type::Condition)
         return;
     internalIdx += idxChange;
     internalCondition = getModConfig().Presets.GetValue()[internalIdx];
 }
 
-bool Preset::ShiftForward() {
+bool JDFixer::Preset::ShiftForward() {
     if (type != Type::Condition)
         return false;
     auto presets = getModConfig().Presets.GetValue();
@@ -451,7 +454,7 @@ bool Preset::ShiftForward() {
     return true;
 }
 
-bool Preset::ShiftBackward() {
+bool JDFixer::Preset::ShiftBackward() {
     if (type != Type::Condition || internalIdx == 0)
         return false;
     auto presets = getModConfig().Presets.GetValue();
@@ -462,7 +465,7 @@ bool Preset::ShiftBackward() {
     return true;
 }
 
-LevelPreset Preset::GetAsLevelPreset() {
+JDFixer::LevelPreset JDFixer::Preset::GetAsLevelPreset() {
     if (GetIsLevelPreset())
         return internalLevel;
     LevelPreset ret;
@@ -473,11 +476,11 @@ LevelPreset Preset::GetAsLevelPreset() {
     return ret;
 }
 
-bool Preset::GetIsLevelPreset() {
+bool JDFixer::Preset::GetIsLevelPreset() {
     return type == Type::Level;
 }
 
-void Preset::UpdateLevel(Values const& levelValues) {
+void JDFixer::Preset::UpdateLevel(Values const& levelValues) {
     levelNJS = levelValues.njs;
     if (!GetUseDefaults())
         return;
@@ -488,7 +491,7 @@ void Preset::UpdateLevel(Values const& levelValues) {
     SetNJS(levelNJS);
 }
 
-Preset::Preset(std::string levelID, std::string mapID, Values const& levelValues) {
+JDFixer::Preset::Preset(std::string levelID, std::string mapID, Values const& levelValues) {
     type = Type::Level;
     internalLevelID = levelID;
     internalMapID = mapID;
@@ -498,7 +501,7 @@ Preset::Preset(std::string levelID, std::string mapID, Values const& levelValues
     levelNJS = levelValues.njs;
 }
 
-Preset::Preset(int conditionIdx, Values const& levelValues, bool setToLevel) {
+JDFixer::Preset::Preset(int conditionIdx, Values const& levelValues, bool setToLevel) {
     type = Type::Condition;
     internalCondition = getModConfig().Presets.GetValue()[conditionIdx];
     internalIdx = conditionIdx;
@@ -513,7 +516,7 @@ Preset::Preset(int conditionIdx, Values const& levelValues, bool setToLevel) {
     }
 }
 
-Preset::Preset(Values const& levelValues, bool setToLevel) {
+JDFixer::Preset::Preset(Values const& levelValues, bool setToLevel) {
     type = Type::Main;
     levelNJS = levelValues.njs;
     if (getModConfig().AutoDef.GetValue() && setToLevel) {
@@ -525,9 +528,6 @@ Preset::Preset(Values const& levelValues, bool setToLevel) {
     }
 }
 
-void UpdateScoreSubmission(bool overridingNJS) {
-    if (overridingNJS && !getModConfig().Disable.GetValue())
-        bs_utils::Submission::disable(modInfo);
-    else
-        bs_utils::Submission::enable(modInfo);
+void JDFixer::UpdateScoreSubmission(bool overridingNJS) {
+    MetaCore::Game::SetScoreSubmission(MOD_ID, !overridingNJS || getModConfig().Disable.GetValue());
 }
