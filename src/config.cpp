@@ -278,7 +278,7 @@ static void UpdatePresetUI() {
 }
 
 static bool UpdatePreset() {
-    if (!currentBeatmap)
+    if (!currentBeatmap.IsValid())
         return false;
     if (auto levelPreset = JDFixer::GetLevelPreset(currentBeatmap)) {
         hasLevelPreset = true;
@@ -367,7 +367,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
         CreateCenteredText(spaced, "NJS")->color = labelColor;
 
         durationText = CreateCenteredText(spaced, "", 0, []() {
-            if (!currentBeatmap)
+            if (!currentBeatmap.IsValid())
                 return;
             currentAppliedValues.SetDuration(currentLevelValues.GetJumpDuration());
             UpdateMainUI();
@@ -377,7 +377,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
         durationText->onExit = std::bind(Unhighlight, durationText);
 
         distanceText = CreateCenteredText(spaced, "", 0, []() {
-            if (!currentBeatmap)
+            if (!currentBeatmap.IsValid())
                 return;
             currentAppliedValues.SetDistance(currentLevelValues.GetJumpDistance());
             UpdateMainUI();
@@ -387,7 +387,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
         distanceText->onExit = std::bind(Unhighlight, distanceText);
 
         njsText = CreateCenteredText(spaced, "", 0, []() {
-            if (!currentBeatmap)
+            if (!currentBeatmap.IsValid())
                 return;
             currentAppliedValues.SetNJS(currentLevelValues.njs);
             UpdateMainUI();
@@ -476,7 +476,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
 
         bool presetActive = currentAppliedValues.GetIsLevelPreset() && currentAppliedValues.GetAsLevelPreset().Active;
         levelSaveToggle = BSML::Lite::CreateToggle(horizontal1, "Level Specific Settings", presetActive, [](bool enabled) {
-            if (!currentBeatmap)
+            if (!currentBeatmap.IsValid())
                 return;
             auto currentLevelPreset = currentAppliedValues.GetAsLevelPreset();
             if (auto preexisting = GetLevelPreset(currentBeatmap))
@@ -495,7 +495,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
             horizontal1,
             "X",
             []() {
-                if (!currentBeatmap)
+                if (!currentBeatmap.IsValid())
                     return;
                 RemoveLevelPreset(currentBeatmap);
                 if (UpdatePreset())
@@ -732,7 +732,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
                 return;
             currentModifiedValues.SetUseDefaults(enabled);
             currentAppliedValues.SyncCondition();
-            if (!currentBeatmap)
+            if (!currentBeatmap.IsValid())
                 return;
             currentAppliedValues.UpdateLevel(currentLevelValues);
             UpdateMainUI();
@@ -829,7 +829,7 @@ void JDFixer::UpdateLevel(GlobalNamespace::BeatmapKey beatmap, float speed) {
         logger.info("Updating for level {} {} {}", beatmap.levelId, (int) beatmap.difficulty, beatmap.beatmapCharacteristic->serializedName);
     if (!currentBeatmap.IsValid())
         lastSpeed = speed;
-    if (currentBeatmap == beatmap)
+    if (currentBeatmap.Equals(beatmap))
         return;
     // beatmap being non null here signifies that it changed
     if (beatmap.IsValid())

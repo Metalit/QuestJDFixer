@@ -184,7 +184,7 @@ static float GetDefaultDifficultyNJS(BeatmapDifficulty difficulty) {
 }
 
 JDFixer::Values JDFixer::GetLevelDefaults(GlobalNamespace::BeatmapKey beatmap, float speed) {
-    if (!beatmap)
+    if (!beatmap.IsValid())
         return {};
 
     auto level = MetaCore::Songs::FindLevel(beatmap);
