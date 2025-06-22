@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         name: Checkout
         with:
           submodules: true
@@ -30,14 +30,11 @@ jobs:
           cat ${GITHUB_WORKSPACE}/ndkpath.txt
 
       - name: QPM Action
-        uses: Fernthedev/qpm-action@main
+        uses: Fernthedev/qpm-action@v1
         with:
           workflow_token: ${{ secrets.GITHUB_TOKEN }}
-
           restore: true
           cache: true
-
-          publish: false # qpm package
 
       - name: List Post Restore
         run: |
