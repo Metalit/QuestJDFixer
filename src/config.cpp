@@ -13,6 +13,7 @@
 #include "bsml/shared/BSML.hpp"
 #include "main.hpp"
 #include "metacore/shared/delegates.hpp"
+#include "metacore/shared/songs.hpp"
 #include "metacore/shared/ui.hpp"
 #include "utils.hpp"
 
@@ -407,16 +408,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
         float decimalIncrement = 1.0 / pow(10, getModConfig().Decimals.GetValue());
 
         durationSlider = BSML::Lite::CreateSliderSetting(
-            mainVertical,
-            "Half Jump Duration",
-            decimalIncrement,
-            currentAppliedValues.GetMainValue(),
-            0.1,
-            2.5,
-            0,
-            true,
-            {},
-            [](float value) {
+            mainVertical, "Half Jump Duration", decimalIncrement, currentAppliedValues.GetMainValue(), 0.1, 2.5, 0, true, {}, [](float value) {
                 if (!currentAppliedValues.GetUseDuration())
                     return;
                 currentAppliedValues.SetMainValue(value);
@@ -425,16 +417,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
         );
         durationSlider->formatter = decimalFormat;
         distanceSlider = BSML::Lite::CreateSliderSetting(
-            mainVertical,
-            "Half Jump Distance",
-            decimalIncrement,
-            currentAppliedValues.GetMainValue(),
-            1,
-            50,
-            0,
-            true,
-            {},
-            [](float value) {
+            mainVertical, "Half Jump Distance", decimalIncrement, currentAppliedValues.GetMainValue(), 1, 50, 0, true, {}, [](float value) {
                 if (currentAppliedValues.GetUseDuration())
                     return;
                 currentAppliedValues.SetMainValue(value);
@@ -740,11 +723,7 @@ void JDFixer::GameplaySettings(UnityEngine::GameObject* gameObject, bool firstAc
 
         static std::vector<std::string_view> mainValueOptions = {"Distance", "Duration"};
         durDistDropdown = CreateNonSettingDropdownEnum(
-            presetsVertical,
-            getModConfig().UseDuration,
-            currentModifiedValues.GetUseDuration(),
-            mainValueOptions,
-            [](int option) {
+            presetsVertical, getModConfig().UseDuration, currentModifiedValues.GetUseDuration(), mainValueOptions, [](int option) {
                 currentModifiedValues.SetUseDuration(option);
                 currentAppliedValues.SyncCondition();
                 UpdateMainUI();
@@ -834,6 +813,10 @@ void JDFixer::UpdateLevel(GlobalNamespace::BeatmapKey beatmap, float speed) {
     // beatmap being non null here signifies that it changed
     if (beatmap.IsValid())
         currentBeatmap = beatmap;
+    if (currentBeatmap.IsValid() && !MetaCore::Songs::FindLevel(currentBeatmap))
+        currentBeatmap = {};
+    if (!currentBeatmap.IsValid())
+        return;
     currentLevelValues = GetLevelDefaults(currentBeatmap, speed);
     bool currentValuesChanged = UpdatePreset();
     if (currentValuesChanged)
